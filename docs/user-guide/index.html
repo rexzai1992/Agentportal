@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Travel Agent Portal — User Guide</title>
+<style>
+  :root {
+    --green: #10b981;
+    --green-dark: #047857;
+    --ink: #0f172a;
+    --muted: #64748b;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --border: #e2e8f0;
+    --amber: #b45309;
+    --red: #b91c1c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.65;
+  }
+  .layout { display: flex; max-width: 1400px; margin: 0 auto; }
+
+  /* Sidebar TOC */
+  nav.toc {
+    position: sticky; top: 0; align-self: flex-start;
+    width: 280px; min-width: 280px; height: 100vh; overflow-y: auto;
+    background: var(--card); border-right: 1px solid var(--border);
+    padding: 24px 16px;
+  }
+  nav.toc h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 12px; }
+  nav.toc a {
+    display: block; padding: 7px 12px; border-radius: 10px;
+    color: var(--ink); text-decoration: none; font-size: 14px; margin-bottom: 2px;
+  }
+  nav.toc a:hover { background: #ecfdf5; color: var(--green-dark); }
+  nav.toc .role { margin-top: 14px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--green-dark); padding: 0 12px; }
+
+  main { flex: 1; padding: 40px 48px 120px; min-width: 0; }
+
+  header.hero {
+    background: linear-gradient(135deg, #064e3b, #10b981);
+    color: #fff; border-radius: 24px; padding: 48px; margin-bottom: 40px;
+  }
+  header.hero h1 { font-size: 34px; margin-bottom: 10px; }
+  header.hero p { font-size: 16px; opacity: .92; max-width: 720px; }
+
+  section { margin-bottom: 64px; }
+  h2.section {
+    font-size: 26px; margin-bottom: 6px; padding-top: 16px;
+    border-top: 3px solid var(--green); display: inline-block;
+  }
+  .section-sub { color: var(--muted); margin-bottom: 24px; }
+  h3 { font-size: 19px; margin: 32px 0 8px; }
+  p { margin-bottom: 12px; max-width: 860px; }
+  ul, ol { margin: 0 0 14px 22px; max-width: 840px; }
+  li { margin-bottom: 6px; }
+
+  figure {
+    margin: 18px 0 30px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    padding: 12px; box-shadow: 0 12px 30px -18px rgba(15, 23, 42, .25);
+    max-width: 980px;
+  }
+  figure img { width: 100%; height: auto; border-radius: 10px; display: block; }
+  figcaption { font-size: 13px; color: var(--muted); padding: 10px 6px 2px; text-align: center; }
+
+  .step {
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--green); color: #fff; font-weight: 800; font-size: 13px;
+    width: 26px; height: 26px; border-radius: 999px; margin-right: 8px; flex: none;
+  }
+  .callout {
+    border-left: 4px solid var(--green); background: #ecfdf5;
+    border-radius: 0 12px 12px 0; padding: 14px 18px; margin: 16px 0 22px; max-width: 840px;
+  }
+  .callout.warn { border-color: #f59e0b; background: #fffbeb; }
+  .callout.danger { border-color: #ef4444; background: #fef2f2; }
+
+  table { border-collapse: collapse; width: 100%; max-width: 900px; margin: 14px 0 26px; background: var(--card); border-radius: 12px; overflow: hidden; font-size: 14px; }
+  th { background: #f1f5f9; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  th, td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  code { background: #eef2f7; border: 1px solid var(--border); border-radius: 6px; padding: 1px 7px; font-size: 13px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+  .badge.green { background: #d1fae5; color: var(--green-dark); }
+  .badge.amber { background: #fef3c7; color: var(--amber); }
+  .badge.red { background: #fee2e2; color: var(--red); }
+  .badge.gray { background: #e2e8f0; color: #334155; }
+
+  .flow {
+    display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0 26px; align-items: stretch;
+  }
+  .flow .node {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 12px 16px; min-width: 150px; flex: 1;
+    box-shadow: 0 8px 20px -14px rgba(15,23,42,.2);
+  }
+  .flow .node b { display: block; color: var(--green-dark); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+  .flow .node span { font-size: 13.5px; }
+  .flow .arrow { align-self: center; color: var(--green); font-size: 22px; font-weight: 800; }
+
+  @media (max-width: 900px) {
+    nav.toc { display: none; }
+    main { padding: 20px; }
+    header.hero { padding: 28px; }
+  }
+  @media print {
+    nav.toc { display: none; }
+    figure { box-shadow: none; break-inside: avoid; }
+    section { break-inside: avoid-page; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <h2>User Guide</h2>
+  <a href="#overview">1. Overview &amp; Roles</a>
+  <div class="role">Agent / Partner</div>
+  <a href="#register">2. How to Register</a>
+  <a href="#status">3. Check Application Status</a>
+  <div class="role">Admin</div>
+  <a href="#approve">4. Approve Registrations</a>
+  <a href="#schemes">5. Purchase Schemes</a>
+  <a href="#announcements">6. Announcements</a>
+  <div class="role">Agent / Partner</div>
+  <a href="#firstlogin">7. First Login</a>
+  <a href="#buy">8. Buying Tickets</a>
+  <a href="#payoffline">9. Pay Offline</a>
+  <div class="role">Finance</div>
+  <a href="#finance">10. Mark Payment Paid</a>
+  <div class="role">Admin</div>
+  <a href="#paymentapproval">11. Approve Payment</a>
+  <div class="role">Agent / Partner</div>
+  <a href="#vouchers">12. Vouchers &amp; QR</a>
+  <a href="#profile">13. Profile &amp; Renewal</a>
+  <div class="role">Admin</div>
+  <a href="#complimentary">14. Complimentary</a>
+  <a href="#renewals">15. Renewals</a>
+  <a href="#reports">16. Reports</a>
+  <div class="role">Staff</div>
+  <a href="#redeem">17. Redeem QR at Gate</a>
+  <div class="role">Reference</div>
+  <a href="#statuses">18. Status Reference</a>
+  <a href="#faq">19. FAQ</a>
+</nav>
+
+<main>
+
+<header class="hero">
+  <h1>Travel Agent Portal — User Guide</h1>
+  <p>A simple step-by-step guide for everyone: <b>Agents</b>, <b>Partners</b>, <b>Admin</b>, <b>Finance</b>, and <b>Gate Staff</b> — from registration all the way to redeeming the voucher QR at the gate. Every screenshot is a real screen from the portal.</p>
+</header>
+
+<!-- ============ 1. OVERVIEW ============ -->
+<section id="overview">
+  <h2 class="section">1. Overview &amp; Roles</h2>
+  <p class="section-sub">Who uses the system and how the whole journey fits together.</p>
+
+  <table>
+    <tr><th>Role</th><th>What they do</th><th>Login with</th></tr>
+    <tr><td><b>Agent</b></td><td>Registers with KPL + SSM documents, buys tickets, pays offline, gets vouchers</td><td>Account code e.g. <code>A20260001</code></td></tr>
+    <tr><td><b>Partner</b></td><td>Same as agent, but only needs the SSM document</td><td>Account code e.g. <code>P20260001</code></td></tr>
+    <tr><td><b>Admin</b></td><td>Approves registrations, creates schemes, approves payments, complimentary tickets, reports</td><td>Email</td></tr>
+    <tr><td><b>Finance</b></td><td>Checks the bank slip and marks the payment as <i>Paid</i></td><td>Email</td></tr>
+    <tr><td><b>Staff</b></td><td>Redeems the voucher QR / serial number at the entrance gate</td><td>Email</td></tr>
+  </table>
+
+  <h3>The full journey</h3>
+  <div class="flow">
+    <div class="node"><b>Agent/Partner</b><span>1. Register + upload documents</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>Admin</b><span>2. Approve → account + password emailed</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>Agent</b><span>3. Buy tickets + upload bank slip</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>Finance</b><span>4. Mark payment Paid</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>Admin</b><span>5. Approve → vouchers created</span></div>
+    <div class="arrow">→</div>
+    <div class="node"><b>Staff</b><span>6. Redeem voucher QR at gate</span></div>
+  </div>
+
+  <h3>Demo accounts</h3>
+  <table>
+    <tr><th>Role</th><th>Username</th><th>Password</th></tr>
+    <tr><td>Admin</td><td><code>admin@travel-agent.demo</code></td><td><code>admin123!</code></td></tr>
+    <tr><td>Agent</td><td><code>A20260001</code></td><td><code>agent123!</code></td></tr>
+    <tr><td>Partner</td><td><code>P20260001</code></td><td><code>partner123!</code></td></tr>
+    <tr><td>Finance</td><td><code>finance@travel-agent.demo</code></td><td><code>finance123!</code></td></tr>
+    <tr><td>Staff</td><td><code>staff@travel-agent.demo</code></td><td><code>staff123!</code></td></tr>
+  </table>
+</section>
+
+<!-- ============ 2. REGISTER ============ -->
+<section id="register">
+  <h2 class="section">2. Agent &amp; Partner — How to Register</h2>
+  <p class="section-sub">New companies apply from the login page. No account is needed to register.</p>
+
+  <div class="callout">
+    <b>Agent or Partner?</b><br/>
+    <b>Agent</b> → must upload <b>KPL Form + SSM Form</b> &nbsp;•&nbsp; <b>Partner</b> → only needs the <b>SSM Form</b>
+  </div>
+
+  <h3><span class="step">1</span>Open the portal</h3>
+  <p>Go to the login page. You will see three buttons: <b>Become an Agent</b>, <b>Become a Partner</b>, and <b>Check Application Status</b>.</p>
+  <figure><img src="images/01-login.png" alt="Login page" /><figcaption>Login page with the registration buttons</figcaption></figure>
+
+  <h3><span class="step">2</span>Accept the Terms and Conditions</h3>
+  <p>Click <b>Become an Agent</b> (or <b>Become a Partner</b>). Read the terms, prepare your documents, then click <b>Accept</b>.</p>
+  <figure><img src="images/02-register-terms.png" alt="Terms and conditions" /><figcaption>Terms &amp; Conditions — lists the documents you must prepare</figcaption></figure>
+
+  <h3><span class="step">3</span>Fill in your Company Information</h3>
+  <p>Enter your company name, registration number, email, KPL license (agents only), contact number, and address. Click <b>Save and Next</b>.</p>
+  <figure><img src="images/03-register-company.png" alt="Company information form" /><figcaption>Step 1 of 4 — Company Information</figcaption></figure>
+
+  <h3><span class="step">4</span>Upload the Required Documents</h3>
+  <p>Drag and drop your <b>KPL Form</b> and <b>SSM Form</b> (JPG, PNG, or PDF, max 5&nbsp;MB). A green tick appears when the upload succeeds.</p>
+  <figure><img src="images/04-register-documents.png" alt="Upload documents" /><figcaption>Step 2 of 4 — Required Documents (green = uploaded)</figcaption></figure>
+
+  <h3><span class="step">5</span>Add your Contact Person</h3>
+  <p>Fill in the name, email, and phone number. You can add up to <b>3</b> contact persons.</p>
+  <figure><img src="images/05-register-contact.png" alt="Contact person" /><figcaption>Step 3 of 4 — Contact Person</figcaption></figure>
+
+  <h3><span class="step">6</span>Company Background &amp; Submit</h3>
+  <p>Target Market and Sales Channel are optional. Tick the <b>Privacy Policy &amp; Terms</b> box, then click <b>Submit</b>.</p>
+  <figure><img src="images/06-register-background.png" alt="Company background" /><figcaption>Step 4 of 4 — Company Background + agreement checkbox</figcaption></figure>
+
+  <h3><span class="step">7</span>Save your Application ID</h3>
+  <p>A success screen shows your <b>Application ID</b>. <b>Write it down</b> — you need it to check your status. A confirmation email is also sent to you.</p>
+  <figure><img src="images/07-register-success.png" alt="Registration success" /><figcaption>Success — keep the Application ID safe</figcaption></figure>
+</section>
+
+<!-- ============ 3. CHECK STATUS ============ -->
+<section id="status">
+  <h2 class="section">3. Check Application Status</h2>
+  <p class="section-sub">Anytime after applying, check where your application stands.</p>
+
+  <p>On the login page click <b>Check Application Status</b> and enter your Application ID.</p>
+  <figure><img src="images/08-check-status.png" alt="Check application status" /><figcaption>Application status with details and remarks</figcaption></figure>
+
+  <table>
+    <tr><th>Status</th><th>Meaning</th></tr>
+    <tr><td><span class="badge amber">PENDING</span></td><td>Under review — no action needed</td></tr>
+    <tr><td><span class="badge green">APPROVED</span></td><td>Check your email for your username + temporary password</td></tr>
+    <tr><td><span class="badge amber">REVISION</span></td><td>Something needs fixing — check the email remarks</td></tr>
+    <tr><td><span class="badge red">REJECTED</span></td><td>Application declined — check your email</td></tr>
+  </table>
+
+  <h3>Forgot your password?</h3>
+  <p>Click <b>Forgot password?</b> on the login page, enter your username + email, and a <b>temporary password</b> will be emailed to you.</p>
+  <figure><img src="images/09-forgot-password.png" alt="Forgot password" /><figcaption>Forgot password — username + email</figcaption></figure>
+</section>
+
+<!-- ============ 4. ADMIN APPROVE ============ -->
+<section id="approve">
+  <h2 class="section">4. Admin — Approving Registrations</h2>
+  <p class="section-sub">Admin reviews the documents and creates the account with one click.</p>
+
+  <p>Login as <b>Admin</b>. The dashboard shows pending agent/partner requests, totals, and pending payment approvals — click any card to jump to that page.</p>
+  <figure><img src="images/10-admin-dashboard.png" alt="Admin dashboard" /><figcaption>Admin dashboard with the five portal cards</figcaption></figure>
+
+  <h3><span class="step">1</span>Open the request queue</h3>
+  <p>Go to <b>Agent Requests</b> (or <b>Partner Requests</b>) in the sidebar. Search and filter by status.</p>
+  <figure><img src="images/11-admin-agent-requests.png" alt="Agent requests queue" /><figcaption>Agent Request queue</figcaption></figure>
+
+  <h3><span class="step">2</span>Review the application</h3>
+  <p>Click <b>Review</b>. You can see all company details, <b>open the uploaded KPL/SSM documents</b>, and the contact persons.</p>
+  <figure><img src="images/12-admin-registration-review.png" alt="Review registration" /><figcaption>Review page — documents are clickable</figcaption></figure>
+
+  <h3><span class="step">3</span>Approve, Reject, or ask for Revision</h3>
+  <ul>
+    <li><b>Approve</b> — no remarks needed</li>
+    <li><b>Rejected / Revision</b> — remarks are <b>required</b> (the applicant receives them by email)</li>
+  </ul>
+  <p>When you click <b>Approve</b>, the system automatically creates the account (code like <code>A20260002</code>) and emails the applicant their <b>username + temporary password</b> (valid 24 hours).</p>
+  <figure><img src="images/13-admin-registration-approved.png" alt="Registration approved" /><figcaption>Approved — the new account code is shown</figcaption></figure>
+
+  <h3><span class="step">4</span>Manage the account</h3>
+  <p>The new company appears in <b>Active Agents</b> / <b>Active Partners</b>.</p>
+  <figure><img src="images/14-admin-active-agents.png" alt="Active agents" /><figcaption>Active Agents list</figcaption></figure>
+  <p>Click <b>View</b> to open the account — change the <b>account status</b> or <b>expiry date</b> here.</p>
+  <figure><img src="images/15-admin-account-detail.png" alt="Account detail" /><figcaption>Account detail with status &amp; expiry controls</figcaption></figure>
+</section>
+
+<!-- ============ 5. SCHEMES ============ -->
+<section id="schemes">
+  <h2 class="section">5. Admin — Purchase Schemes</h2>
+  <p class="section-sub">Agents can only buy products inside a scheme that is bound to their account. Do this once per account.</p>
+
+  <h3><span class="step">1</span>Create a Purchase Scheme</h3>
+  <p>Go to <b>Purchase Schemes</b> → <b>New Purchase Scheme</b>. Give it a code + name, pick an effective date, click <b>Add Product</b>, and set the <b>price, min/max quantity, and incentive %</b> per product. Click <b>Save</b>.</p>
+  <figure><img src="images/17-admin-purchase-schemes.png" alt="Purchase schemes" /><figcaption>Purchase Scheme list + New Scheme form</figcaption></figure>
+
+  <p>Click <b>View</b> on a scheme to change its status (Active/Inactive) or add a <b>new revision</b> (new prices starting from a new effective date).</p>
+  <figure><img src="images/18-admin-scheme-detail.png" alt="Scheme detail" /><figcaption>Scheme detail with revisions</figcaption></figure>
+
+  <h3><span class="step">2</span>Bind the scheme to an account</h3>
+  <p>Open the account (<b>Active Agents → View</b>) → <b>View / Bind Scheme</b> → <b>Add New Revision</b> → choose the effective date, the scheme, and an optional incentive. Use the <b>Standard</b> or <b>Special</b> tab.</p>
+  <figure><img src="images/16-admin-bind-scheme.png" alt="Bind scheme" /><figcaption>Scheme Binding — Standard / Special tabs</figcaption></figure>
+
+  <div class="callout warn"><b>Important:</b> if an agent sees “No products are available”, it means no scheme is bound to their account yet.</div>
+</section>
+
+<!-- ============ 6. ANNOUNCEMENTS ============ -->
+<section id="announcements">
+  <h2 class="section">6. Admin — Announcements</h2>
+  <p class="section-sub">Share notices with agents and partners.</p>
+
+  <p>Go to <b>Announcements</b> → <b>Add New Announcement</b>:</p>
+  <ul>
+    <li><b>Display Type = Home Page</b> → shows as a <b>popup + list</b> on agent/partner dashboards (choose the audience: Agent / Partner / both)</li>
+    <li><b>Display Type = Login Page</b> → shows on the login page</li>
+    <li>Set effective + expiry dates, optionally attach a JPG/PDF, set status <b>Active</b></li>
+  </ul>
+  <figure><img src="images/19-admin-announcements.png" alt="Announcements" /><figcaption>Announcement list + Add New form</figcaption></figure>
+</section>
+
+<!-- ============ 7. FIRST LOGIN ============ -->
+<section id="firstlogin">
+  <h2 class="section">7. Agent &amp; Partner — First Login</h2>
+  <p class="section-sub">Use the account code and temporary password from your approval email.</p>
+
+  <h3><span class="step">1</span>Login and change your password</h3>
+  <p>Login with your <b>account code</b> (e.g. <code>A20260002</code>) and the <b>temporary password</b>. You will be asked to <b>change your password</b> first — minimum 5 characters with an uppercase letter, lowercase letter, number, and special character.</p>
+  <figure><img src="images/40-change-password.png" alt="Change password" /><figcaption>Change Password — rules turn green as you type</figcaption></figure>
+
+  <h3><span class="step">2</span>Your dashboard</h3>
+  <p>Home announcements pop up when you land on your dashboard.</p>
+  <figure><img src="images/30-agent-dashboard-popup.png" alt="Announcement popup" /><figcaption>Announcement popup on login</figcaption></figure>
+  <p>The dashboard shows your <b>Pending Approvals</b>, <b>Incomplete Orders</b>, and <b>Today's Purchases</b>.</p>
+  <figure><img src="images/31-agent-dashboard.png" alt="Agent dashboard" /><figcaption>Agent dashboard</figcaption></figure>
+</section>
+
+<!-- ============ 8. BUY ============ -->
+<section id="buy">
+  <h2 class="section">8. Agent &amp; Partner — Buying Tickets</h2>
+  <p class="section-sub">Pick products from your scheme, build a cart, and submit.</p>
+
+  <h3><span class="step">1</span>Ticket Purchase</h3>
+  <p>Open <b>Ticket Management → Ticket Purchase</b>. Pick the product type, enter a quantity (the <b>min/max</b> per item is shown), and click <b>Add</b>. Your cart appears in the <b>Order Summary</b>. Click <b>Submit</b>.</p>
+  <figure><img src="images/32-ticket-purchase.png" alt="Ticket purchase" /><figcaption>Ticket Purchase — item list + Order Summary</figcaption></figure>
+
+  <h3><span class="step">2</span>Transaction Review</h3>
+  <p>You are taken to the <b>Transaction Review</b>: reference number, status, line items, totals, and the <b>bank information</b> for your transfer.</p>
+  <figure><img src="images/33-transaction-review.png" alt="Transaction review" /><figcaption>Transaction Review with bank information</figcaption></figure>
+</section>
+
+<!-- ============ 9. PAY OFFLINE ============ -->
+<section id="payoffline">
+  <h2 class="section">9. Agent &amp; Partner — Pay Offline</h2>
+  <p class="section-sub">After making the bank transfer, upload your proof of payment.</p>
+
+  <h3><span class="step">1</span>Click Pay Offline</h3>
+  <ol>
+    <li>Upload your <b>proof of payment</b> (bank slip — drag &amp; drop)</li>
+    <li>Choose the <b>Payment Group</b> and <b>Payment Type</b></li>
+    <li>Click <b>Submit</b></li>
+  </ol>
+  <figure><img src="images/34-pay-offline-modal.png" alt="Pay offline" /><figcaption>Pay Offline window</figcaption></figure>
+  <p>Your order becomes <span class="badge amber">PENDING APPROVAL</span> — Finance and Admin take over next.</p>
+
+  <h3>Didn't finish paying? — Incomplete Orders</h3>
+  <p>Orders you created but haven't paid are listed in <b>Incomplete Order</b>. Click <b>Complete</b> to go back and pay.</p>
+  <figure><img src="images/35-incomplete-orders.png" alt="Incomplete orders" /><figcaption>Incomplete Orders</figcaption></figure>
+</section>
+
+<!-- ============ 10. FINANCE ============ -->
+<section id="finance">
+  <h2 class="section">10. Finance — Mark Payment Paid</h2>
+  <p class="section-sub">Finance verifies the money really arrived before Admin can approve.</p>
+
+  <p>Login as <b>Finance</b>. You land on the <b>Offline Payments</b> list.</p>
+  <figure><img src="images/50-finance-payments.png" alt="Finance payments" /><figcaption>Offline payments list</figcaption></figure>
+
+  <h3><span class="step">1</span>Open the payment and check the slip</h3>
+  <p>Click the row. Check the purchase details and <b>open the uploaded bank slip</b> to verify the transfer.</p>
+  <figure><img src="images/51-finance-payment-review.png" alt="Finance review" /><figcaption>Payment review — slip link + purchase details</figcaption></figure>
+
+  <h3><span class="step">2</span>Mark Payment Paid</h3>
+  <p>If the transfer is genuine, click <b>Mark Payment Paid</b>. This does <b>not</b> generate tickets — it only confirms the money is verified.</p>
+  <figure><img src="images/52-finance-marked-paid.png" alt="Marked paid" /><figcaption>Payment marked as paid</figcaption></figure>
+
+  <div class="callout warn"><b>Rule:</b> Admin <b>cannot approve</b> a payment before Finance marks it paid.</div>
+</section>
+
+<!-- ============ 11. ADMIN PAYMENT ============ -->
+<section id="paymentapproval">
+  <h2 class="section">11. Admin — Approve the Payment (vouchers are created here)</h2>
+  <p class="section-sub">The final approval that generates the vouchers.</p>
+
+  <h3><span class="step">1</span>Open pending payments</h3>
+  <figure><img src="images/22-admin-payments-pending.png" alt="Pending payments" /><figcaption>Offline Payments — pending approval</figcaption></figure>
+
+  <h3><span class="step">2</span>Review and decide</h3>
+  <p>Open the payment. You can see the purchase details, the slip, and when Finance marked it paid. In <b>Payment Approval</b> choose:</p>
+  <ul>
+    <li><b>Approved</b> → the order is confirmed and <b>vouchers are automatically generated</b> (one voucher per ticket, each with its own serial number + QR)</li>
+    <li><b>Rejected / Revision</b> → a reason is required; the agent receives an email</li>
+  </ul>
+  <figure><img src="images/23-admin-payment-review.png" alt="Admin payment review" /><figcaption>Admin payment review with the approval panel</figcaption></figure>
+  <figure><img src="images/24-admin-payment-approved.png" alt="Payment approved" /><figcaption>Approved — vouchers are issued instantly</figcaption></figure>
+</section>
+
+<!-- ============ 12. VOUCHERS ============ -->
+<section id="vouchers">
+  <h2 class="section">12. Agent &amp; Partner — Vouchers &amp; QR</h2>
+  <p class="section-sub">Once the payment is approved, your vouchers are ready.</p>
+
+  <p>Open <b>Ticket Management → Voucher Issued</b>. Each row is one order: how many vouchers were <b>issued</b>, <b>used</b>, and still <b>available</b>.</p>
+  <figure><img src="images/36-vouchers.png" alt="Vouchers list" /><figcaption>Voucher Issued list</figcaption></figure>
+
+  <p>Click <b>View QR</b> to see every voucher: serial number, dates, gate, redeem status (<span class="badge gray">NEW</span> <span class="badge amber">LOCKED</span> <span class="badge green">REDEEMED</span>), and a <b>View QR</b> button that displays the QR code for that voucher — show this QR at the gate.</p>
+  <figure><img src="images/37-voucher-detail.png" alt="Voucher detail" /><figcaption>Voucher detail — serials, statuses, and QR</figcaption></figure>
+
+  <h3>Reports</h3>
+  <p><b>Reports</b> lists all your purchases and payments. Click <b>Export To Excel</b> to download an <code>.xlsx</code> file.</p>
+  <figure><img src="images/38-agent-purchase-report.png" alt="Agent purchase report" /><figcaption>Purchase Report with Excel export</figcaption></figure>
+</section>
+
+<!-- ============ 13. PROFILE ============ -->
+<section id="profile">
+  <h2 class="section">13. Agent &amp; Partner — Profile &amp; Account Renewal</h2>
+  <p class="section-sub">View your company info and renew before your account expires.</p>
+
+  <p><b>Profile</b> shows your company information, documents, and account expiry. When your account is within <b>2 months of expiry</b>, a <b>Request Renewal</b> button appears — upload your new KPL/SSM, enter the license number + expiry date, and submit.</p>
+  <figure><img src="images/39-agent-profile.png" alt="Profile" /><figcaption>Company Profile with Account Status &amp; Renewal</figcaption></figure>
+
+  <div class="callout danger"><b>If your account expires:</b> you can still log in, but Ticket Purchase is hidden and blocked until Admin approves your renewal.</div>
+</section>
+
+<!-- ============ 14. COMPLIMENTARY ============ -->
+<section id="complimentary">
+  <h2 class="section">14. Admin — Complimentary (free tickets)</h2>
+  <p class="section-sub">Give free vouchers to an agent or partner.</p>
+
+  <p>Go to <b>Ticket Management → Complimentary Voucher</b>: select the agent/partner, click <b>Add Product</b>, set quantities (<b>minimum 20 tickets total</b>), and Submit. Free vouchers are issued immediately at RM&nbsp;0.</p>
+  <figure><img src="images/20-admin-complimentary.png" alt="Complimentary" /><figcaption>Complimentary — user + product cart (min 20)</figcaption></figure>
+</section>
+
+<!-- ============ 15. RENEWALS ============ -->
+<section id="renewals">
+  <h2 class="section">15. Admin — Account Renewals</h2>
+  <p class="section-sub">Approve renewal requests to extend account expiry.</p>
+
+  <p>Renewal requests appear under <b>Renewals</b>. Click <b>Review</b> and choose Approve / Reject / Revision (remarks required for reject/revision). On approval, the account expiry is extended and the agent is emailed.</p>
+  <figure><img src="images/21-admin-renewals.png" alt="Renewals" /><figcaption>Account Renewal queue</figcaption></figure>
+</section>
+
+<!-- ============ 16. REPORTS ============ -->
+<section id="reports">
+  <h2 class="section">16. Admin — Reports</h2>
+  <p class="section-sub">Filter by date and export to Excel.</p>
+
+  <p>Open the <b>Report</b> menu in the sidebar. It contains nine reports:</p>
+  <ul>
+    <li><b>Transaction Report</b> / <b>Transaction Details</b> — all portal transactions (order level / line-item level)</li>
+    <li><b>Purchase Summary</b> / <b>Purchase Details</b> — purchases with payment and approval info</li>
+    <li><b>Top Purchase</b> — most purchased products</li>
+    <li><b>Voucher Issued</b> — issued / used / available vouchers</li>
+    <li><b>Ticket</b> — search a ticket by serial no or QR code</li>
+    <li><b>Complimentary</b> and <b>Payment</b></li>
+  </ul>
+  <figure><img src="images/25-admin-reports.png" alt="Reports menu" /><figcaption>Reports menu</figcaption></figure>
+  <p>Each report has <b>Filter By User</b>, <b>Filter By Company</b>, and <b>date filters</b>, a quick <b>Search</b> box, <b>Show 15/30/50/100 rows</b> with Previous/Next paging, a <b>TOTAL</b> row for amounts, and <b>Export To Excel</b>.</p>
+  <figure><img src="images/26-admin-report-purchase.png" alt="Purchase summary report" /><figcaption>Purchase Summary — filters, totals, and Export To Excel</figcaption></figure>
+</section>
+
+<!-- ============ 17. STAFF REDEEM ============ -->
+<section id="redeem">
+  <h2 class="section">17. Staff — Redeeming the Voucher QR at the Gate</h2>
+  <p class="section-sub">The final step: the customer arrives at the gate with the voucher.</p>
+
+  <h3><span class="step">1</span>Open Voucher Redeem</h3>
+  <p>Login as <b>Staff</b> and open <b>Voucher Redeem</b> in the sidebar.</p>
+  <figure><img src="images/60-staff-voucher-redeem.png" alt="Voucher redeem" /><figcaption>Voucher Redemption screen</figcaption></figure>
+
+  <h3><span class="step">2</span>Scan or type the code</h3>
+  <p>Scan the QR code (or type the serial number, e.g. <code>APM-V-26-134875_012</code>), optionally enter the gate name, and click <b>Redeem Voucher</b>.</p>
+  <figure><img src="images/61-staff-voucher-redeemed.png" alt="Voucher redeemed" /><figcaption>Redeemed ✓ — product, company, and time are shown</figcaption></figure>
+
+  <p>The system <b>rejects</b> the voucher if it is:</p>
+  <ul>
+    <li>❌ already <b>redeemed</b> (each voucher works only once)</li>
+    <li>❌ <b>expired</b> or not yet effective</li>
+    <li>❌ <b>locked</b></li>
+    <li>❌ not found</li>
+  </ul>
+  <p>The agent's voucher list updates instantly — the <b>Used</b> count goes up and that serial becomes <span class="badge green">REDEEMED</span>.</p>
+</section>
+
+<!-- ============ 18. STATUSES ============ -->
+<section id="statuses">
+  <h2 class="section">18. Status Reference</h2>
+  <table>
+    <tr><th>Area</th><th>Statuses</th></tr>
+    <tr><td>Registration / Renewal</td><td><span class="badge amber">PENDING</span> → <span class="badge green">APPROVED</span> / <span class="badge amber">REVISION</span> / <span class="badge red">REJECTED</span></td></tr>
+    <tr><td>Purchase order</td><td><span class="badge amber">PENDING PAYMENT</span> → <span class="badge amber">PENDING APPROVAL</span> → <span class="badge green">ORDER CONFIRMED</span> / <span class="badge amber">REVISION</span> / <span class="badge red">REJECTED</span></td></tr>
+    <tr><td>Offline payment</td><td><span class="badge amber">PENDING APPROVAL</span> → (Finance marks Paid) → <span class="badge green">ORDER CONFIRMED</span> / <span class="badge amber">REVISION</span> / <span class="badge red">REJECTED</span></td></tr>
+    <tr><td>Voucher</td><td><span class="badge gray">NEW</span> → <span class="badge green">REDEEMED</span> (or <span class="badge amber">LOCKED</span> / <span class="badge red">EXPIRED</span>)</td></tr>
+    <tr><td>Account</td><td><span class="badge green">ACTIVE</span> / <span class="badge gray">INACTIVE</span> / <span class="badge red">EXPIRED</span></td></tr>
+  </table>
+</section>
+
+<!-- ============ 19. FAQ ============ -->
+<section id="faq">
+  <h2 class="section">19. Frequently Asked Questions</h2>
+  <table>
+    <tr><th>Question</th><th>Answer</th></tr>
+    <tr><td>I lost my Application ID</td><td>Check the confirmation email sent when you registered.</td></tr>
+    <tr><td>My temporary password expired</td><td>Use <b>Forgot password?</b> on the login page — a new temporary password is emailed to you.</td></tr>
+    <tr><td>Agent sees “No products are available”</td><td>Admin has not bound a purchase scheme to that account yet — see section 5.</td></tr>
+    <tr><td>Admin can't approve a payment</td><td>Finance must click <b>Mark Payment Paid</b> first — see section 10.</td></tr>
+    <tr><td>A voucher won't redeem</td><td>Check its status in the voucher detail page — it may already be redeemed or expired.</td></tr>
+  </table>
+
+  <p style="margin-top:32px; color: var(--muted); font-size: 13px;">All screenshots in this guide are real screens captured from the live application.</p>
+</section>
+
+</main>
+</div>
+</body>
+</html>

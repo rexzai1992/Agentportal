@@ -1,0 +1,907 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  AGENT
+  STAFF
+  FINANCE
+}
+
+enum PartyType {
+  AGENT
+  PARTNER
+}
+
+enum AccountStatus {
+  ACTIVE
+  INACTIVE
+  EXPIRED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  REVISION
+}
+
+enum AnnouncementDisplay {
+  HOME
+  LOGIN
+}
+
+enum AnnouncementAudience {
+  AGENT
+  PARTNER
+  BOTH
+}
+
+enum AnnouncementStatus {
+  ACTIVE
+  INACTIVE
+  EXPIRED
+}
+
+enum SchemeStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  PENDING_PAYMENT
+  PENDING_APPROVAL
+  ORDER_CONFIRMED
+  REJECTED
+  REVISION
+  CANCELLED
+}
+
+enum OfflinePaymentStatus {
+  PENDING_APPROVAL
+  ORDER_CONFIRMED
+  REJECTED
+  REVISION
+}
+
+enum VoucherRedeemStatus {
+  NEW
+  LOCKED
+  REDEEMED
+  EXPIRED
+}
+
+enum VoucherSource {
+  PURCHASE
+  COMPLIMENTARY
+}
+
+enum DocumentType {
+  KPL
+  SSM
+  PAYMENT_SLIP
+  ANNOUNCEMENT_MEDIA
+  OTHER
+}
+
+enum DocumentOwnerType {
+  REGISTRATION
+  AGENT
+  RENEWAL
+  OFFLINE_PAYMENT
+  ANNOUNCEMENT
+}
+
+enum AgreementType {
+  PREPAID
+  WEEKLY
+  MONTHLY
+}
+
+enum TicketCategory {
+  ADULT
+  CHILD
+  BUNDLE
+}
+
+enum ValidityType {
+  SAME_DAY
+  FIXED_DATE
+  DATE_RANGE
+}
+
+enum BookingPaymentStatus {
+  PREPAID_PAID
+  UNBILLED
+  INVOICED
+  PAID
+}
+
+enum TicketStatus {
+  ACTIVE
+  USED
+  EXPIRED
+  CANCELLED
+}
+
+enum InvoiceType {
+  WEEKLY
+  MONTHLY
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  OVERDUE
+}
+
+enum OTAProvider {
+  KLOOK
+}
+
+enum OTAEnvironment {
+  SANDBOX
+  PRODUCTION
+}
+
+enum KlookOrderStatus {
+  PENDING
+  RESERVED
+  CONFIRMED
+  CANCELLED
+  FAILED
+  REDEEMED
+}
+
+model User {
+  id                 String    @id @default(cuid())
+  fullName           String
+  email              String    @unique
+  username           String?   @unique
+  passwordHash       String
+  role               Role
+  agentId            String?
+  mustChangePassword Boolean   @default(false)
+  passwordExpiresAt  DateTime?
+  refreshTokenHash   String?
+  resetToken         String?
+  resetTokenExpiry   DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  agent           Agent?         @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  createdBookings Booking[]      @relation("BookingCreator")
+  checkins        Ticket[]       @relation("TicketChecker")
+  activityLogs    ActivityLog[]
+  createdTopUps   TopUp[]        @relation("TopUpCreator")
+  redeemedKlookOrders KlookOrder[] @relation("KlookOrderRedeemer")
+  klookRedemptionLogs KlookRedemptionLog[] @relation("KlookRedemptionStaff")
+  redeemedVouchers Voucher[]     @relation("VoucherRedeemer")
+
+  @@index([agentId])
+}
+
+model Agent {
+  id                    String        @id @default(cuid())
+  companyName           String
+  contactName           String
+  phone                 String
+  email                 String        @unique
+  agreementType         AgreementType
+  commissionRate        Decimal       @db.Decimal(5, 2)
+  creditBalance         Decimal       @default(0) @db.Decimal(12, 2)
+  outstandingBalance    Decimal       @default(0) @db.Decimal(12, 2)
+  creditLimit           Decimal?      @db.Decimal(12, 2)
+  billingCycleStartDate DateTime
+  isActive              Boolean       @default(true)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  // OWG Agent Portal party fields (additive, nullable/defaulted for existing rows)
+  partyType       PartyType     @default(AGENT)
+  accountCode     String?       @unique
+  registrationNo  String?
+  kplLicenseNo    String?
+  kplExpiryDate   DateTime?
+  fax             String?
+  addressLine1    String?
+  addressLine2    String?
+  addressLine3    String?
+  postcode        String?
+  country         String?
+  state           String?
+  targetMarket    String?       @db.Text
+  salesChannel    String?
+  accountStatus   AccountStatus @default(ACTIVE)
+  accountExpiry   DateTime?
+  registrationId  String?       @unique
+
+  users    User[]
+  bookings Booking[]
+  invoices Invoice[]
+  topUps   TopUp[]
+
+  registration        Registration?       @relation(fields: [registrationId], references: [id], onDelete: SetNull)
+  contactPersons      ContactPerson[]
+  documents           Document[]
+  renewalRequests     RenewalRequest[]
+  schemeAssignments   SchemeAssignment[]
+  purchaseOrders      PurchaseOrder[]
+  offlinePayments     OfflinePayment[]
+  complimentaryGrants ComplimentaryGrant[]
+  vouchers            Voucher[]
+
+  @@index([agreementType])
+  @@index([isActive])
+  @@index([partyType])
+  @@index([accountStatus])
+}
+
+model TicketType {
+  id             String       @id @default(cuid())
+  outletId       String
+  name           String
+  sku            String?      @unique
+  description    String?      @db.Text
+  imageUrl       String?
+  category       TicketCategory
+  sellingPrice   Decimal      @db.Decimal(12, 2)
+  costPrice      Decimal      @db.Decimal(12, 2)
+  commissionRate Decimal      @db.Decimal(5, 2)
+  validityType   ValidityType
+  active         Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  outlet Outlet @relation(fields: [outletId], references: [id], onDelete: Restrict)
+  tickets Ticket[]
+  klookProducts KlookProduct[]
+  klookAvailabilityLogs KlookAvailabilityLog[]
+  klookOrders KlookOrder[]
+  schemeProducts SchemeProduct[]
+  purchaseOrderItems PurchaseOrderItem[]
+  vouchers Voucher[]
+
+  @@index([outletId])
+}
+
+model Outlet {
+  id          String   @id @default(cuid())
+  name        String
+  code        String   @unique
+  description String?  @db.Text
+  address     String?  @db.Text
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  ticketTypes TicketType[]
+
+  @@index([active])
+}
+
+model Booking {
+  id                String               @id @default(cuid())
+  agentId           String
+  customerName      String
+  customerPhone     String?
+  bookingReference  String               @unique
+  totalTickets      Int
+  subtotal          Decimal              @db.Decimal(12, 2)
+  totalCommission   Decimal              @db.Decimal(12, 2)
+  totalPayable      Decimal              @db.Decimal(12, 2)
+  paymentStatus     BookingPaymentStatus
+  createdByUserId   String
+  invoiceId         String?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  agent         Agent      @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  createdByUser User       @relation("BookingCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  invoice       Invoice?   @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  tickets       Ticket[]
+
+  @@index([agentId])
+  @@index([createdByUserId])
+  @@index([invoiceId])
+  @@index([createdAt])
+}
+
+model Ticket {
+  id          String      @id @default(cuid())
+  bookingId   String
+  ticketTypeId String
+  ticketCode  String      @unique
+  qrToken     String      @unique
+  visitDate   DateTime
+  status      TicketStatus @default(ACTIVE)
+  checkedInAt DateTime?
+  checkedInBy String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  booking    Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  ticketType TicketType @relation(fields: [ticketTypeId], references: [id], onDelete: Restrict)
+  checker    User?     @relation("TicketChecker", fields: [checkedInBy], references: [id], onDelete: SetNull)
+
+  @@index([bookingId])
+  @@index([ticketTypeId])
+  @@index([visitDate])
+  @@index([status])
+}
+
+model Invoice {
+  id              String       @id @default(cuid())
+  agentId         String
+  invoiceNumber   String       @unique
+  invoiceType     InvoiceType
+  periodStart     DateTime
+  periodEnd       DateTime
+  totalSales      Decimal      @db.Decimal(12, 2)
+  totalCommission Decimal      @db.Decimal(12, 2)
+  totalPayable    Decimal      @db.Decimal(12, 2)
+  status          InvoiceStatus @default(DRAFT)
+  dueDate         DateTime
+  paidAt          DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  agent    Agent     @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  bookings Booking[]
+
+  @@index([agentId])
+  @@index([status])
+  @@index([periodStart, periodEnd])
+}
+
+model TopUp {
+  id          String   @id @default(cuid())
+  agentId     String
+  amount      Decimal  @db.Decimal(12, 2)
+  reference   String
+  notes       String?  @db.Text
+  createdBy   String
+  createdAt   DateTime @default(now())
+
+  agent         Agent @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  createdByUser User  @relation("TopUpCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+
+  @@index([agentId])
+  @@index([createdBy])
+}
+
+model ActivityLog {
+  id          String   @id @default(cuid())
+  userId      String
+  action      String
+  entityType  String
+  entityId    String
+  description String   @db.Text
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model OTAProviderSetting {
+  id          String         @id @default(cuid())
+  provider    OTAProvider    @unique
+  apiBaseUrl  String?
+  clientId    String?
+  apiKey      String?
+  environment OTAEnvironment @default(SANDBOX)
+  isEnabled   Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model KlookProduct {
+  id                 String      @id @default(cuid())
+  klookProductId     String      @unique
+  localProductId     String?
+  title              String
+  description        String?     @db.Text
+  city               String?
+  country            String?
+  category           String?
+  packageOptionsJson Json
+  bookingPolicyJson  Json?
+  voucherType        String?
+  confirmationType   String?
+  rawJson            Json
+  isActive           Boolean     @default(true)
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  localProduct      TicketType?             @relation(fields: [localProductId], references: [id], onDelete: SetNull)
+  availabilityLogs  KlookAvailabilityLog[]
+  orders            KlookOrder[]
+
+  @@index([localProductId])
+  @@index([isActive])
+}
+
+model KlookAvailabilityLog {
+  id             String   @id @default(cuid())
+  klookProductId String
+  localProductId String?
+  requestJson    Json
+  responseJson   Json
+  availabilityId String?
+  travelDate     String
+  status         String?
+  createdAt      DateTime @default(now())
+
+  klookProduct KlookProduct @relation(fields: [klookProductId], references: [klookProductId], onDelete: Cascade)
+  localProduct  TicketType?  @relation(fields: [localProductId], references: [id], onDelete: SetNull)
+
+  @@index([klookProductId, travelDate])
+  @@index([localProductId])
+  @@index([createdAt])
+}
+
+model KlookOrder {
+  id                     String           @id @default(cuid())
+  localOrderId           String           @unique
+  klookOrderId           String?          @unique
+  klookBookingReference  String?
+  klookProductId         String
+  localProductId         String?
+  availabilityId         String?
+  travelDate             String?
+  customerName           String
+  customerEmail          String?
+  customerPhone          String?
+  quantityAdult          Int              @default(0)
+  quantityChild          Int              @default(0)
+  totalAmount            Decimal?         @db.Decimal(12, 2)
+  currency               String?
+  status                 KlookOrderStatus @default(PENDING)
+  voucherCode            String?
+  voucherUrl             String?          @db.Text
+  rawBookingRequestJson  Json
+  rawBookingResponseJson Json
+  rawStatusResponseJson  Json?
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+  redeemedAt             DateTime?
+  redeemedByStaffId      String?
+
+  klookProduct   KlookProduct         @relation(fields: [klookProductId], references: [klookProductId], onDelete: Restrict)
+  localProduct   TicketType?          @relation(fields: [localProductId], references: [id], onDelete: SetNull)
+  redeemedByStaff User?               @relation("KlookOrderRedeemer", fields: [redeemedByStaffId], references: [id], onDelete: SetNull)
+  redemptionLogs KlookRedemptionLog[]
+
+  @@index([klookProductId])
+  @@index([localProductId])
+  @@index([status])
+  @@index([travelDate])
+  @@index([voucherCode])
+  @@index([klookBookingReference])
+}
+
+model KlookRedemptionLog {
+  id               String   @id @default(cuid())
+  klookOrderId     String?
+  voucherCode      String?
+  bookingReference String?
+  staffId          String?
+  status           String
+  message          String   @db.Text
+  createdAt        DateTime @default(now())
+  requestJson      Json
+
+  klookOrder KlookOrder? @relation(fields: [klookOrderId], references: [id], onDelete: Cascade)
+  staff      User?       @relation("KlookRedemptionStaff", fields: [staffId], references: [id], onDelete: SetNull)
+
+  @@index([klookOrderId])
+  @@index([staffId])
+  @@index([createdAt])
+}
+
+model OTAApiLog {
+  id                 String      @id @default(cuid())
+  otaProvider        OTAProvider
+  action             String
+  endpoint           String
+  method             String
+  requestHeadersJson Json
+  requestBodyJson    Json?
+  responseStatus     Int?
+  responseBodyJson   Json?
+  success            Boolean
+  errorMessage       String?     @db.Text
+  createdAt          DateTime    @default(now())
+
+  @@index([otaProvider, createdAt])
+  @@index([action])
+  @@index([success])
+}
+
+// ============================================================
+// OWG Agent Portal — additive models
+// ============================================================
+
+/// A polymorphic uploaded file (KPL/SSM/payment slip/announcement media).
+model Document {
+  id               String            @id @default(cuid())
+  ownerType        DocumentOwnerType
+  ownerId          String?
+  docType          DocumentType
+  fileName         String
+  storagePath      String
+  mimeType         String
+  sizeBytes        Int
+  licenseNo        String?
+  expiryDate       DateTime?
+  uploadedByUserId String?
+  createdAt        DateTime          @default(now())
+
+  agent          Agent?          @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  agentId        String?
+  registration   Registration?   @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  registrationId String?
+  renewal        RenewalRequest? @relation(fields: [renewalId], references: [id], onDelete: Cascade)
+  renewalId      String?
+
+  @@index([ownerType, ownerId])
+  @@index([docType])
+  @@index([agentId])
+  @@index([registrationId])
+  @@index([renewalId])
+}
+
+/// A contact person attached to a registration or an active party.
+model ContactPerson {
+  id             String            @id @default(cuid())
+  ownerType      DocumentOwnerType
+  name           String
+  designation    String?
+  email          String?
+  phone          String?
+  isPrimary      Boolean           @default(false)
+  createdAt      DateTime          @default(now())
+
+  agent          Agent?        @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  agentId        String?
+  registration   Registration? @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  registrationId String?
+
+  @@index([agentId])
+  @@index([registrationId])
+}
+
+/// Self-service registration (pre-account). On approval an Agent + User are created.
+model Registration {
+  id               String         @id @default(cuid())
+  applicationId    String         @unique
+  partyType        PartyType
+  companyName      String
+  registrationNo   String
+  email            String
+  kplLicenseNo     String?
+  kplExpiryDate    DateTime?
+  contactNo        String
+  fax              String?
+  addressLine1     String
+  addressLine2     String
+  addressLine3     String?
+  postcode         String
+  country          String
+  state            String
+  targetMarket     String?        @db.Text
+  salesChannel     String?
+  termsAcceptedAt  DateTime?
+  status           ApprovalStatus @default(PENDING)
+  remarks          String?        @db.Text
+  reviewedByUserId String?
+  reviewedAt       DateTime?
+  createdAgentId   String?
+  createdUserId    String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  contactPersons ContactPerson[]
+  documents      Document[]
+  agent          Agent?
+
+  @@index([status, partyType])
+  @@index([email])
+}
+
+/// Account renewal request for an existing party (surfaces 2 months before expiry).
+model RenewalRequest {
+  id               String         @id @default(cuid())
+  agentId          String
+  kplLicenseNo     String?
+  kplExpiryDate    DateTime?
+  ssmExpiryDate    DateTime?
+  status           ApprovalStatus @default(PENDING)
+  remarks          String?        @db.Text
+  reviewedByUserId String?
+  reviewedAt       DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  agent     Agent      @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  documents Document[]
+
+  @@index([agentId])
+  @@index([status])
+}
+
+/// Admin announcement (Home popup / Login page), with optional JPG/PDF media.
+model Announcement {
+  id              String               @id @default(cuid())
+  title           String
+  body            String?              @db.Text
+  mediaDocumentId String?
+  displayType     AnnouncementDisplay
+  audience        AnnouncementAudience @default(BOTH)
+  effectiveDate   DateTime
+  expiryDate      DateTime
+  status          AnnouncementStatus   @default(ACTIVE)
+  createdByUserId String
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([displayType, audience, status])
+  @@index([effectiveDate, expiryDate])
+}
+
+/// A purchase scheme groups products for parties; revisions version the product set.
+model Scheme {
+  id              String       @id @default(cuid())
+  code            String       @unique
+  name            String
+  description     String?      @db.Text
+  organisation    String?
+  status          SchemeStatus @default(ACTIVE)
+  createdByUserId String
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  revisions   SchemeRevision[]
+  assignments SchemeAssignment[]
+}
+
+model SchemeRevision {
+  id              String       @id @default(cuid())
+  schemeId        String
+  revisionNumber  Int
+  effectiveDate   DateTime
+  status          SchemeStatus @default(ACTIVE)
+  createdByUserId String
+  createdAt       DateTime     @default(now())
+
+  scheme         Scheme          @relation(fields: [schemeId], references: [id], onDelete: Cascade)
+  products       SchemeProduct[]
+  purchaseOrders PurchaseOrder[]
+
+  @@unique([schemeId, revisionNumber])
+  @@index([schemeId, effectiveDate])
+}
+
+model SchemeProduct {
+  id               String   @id @default(cuid())
+  schemeRevisionId String
+  ticketTypeId     String
+  price            Decimal  @db.Decimal(12, 2)
+  minQty           Int      @default(1)
+  maxQty           Int?
+  incentiveRate    Decimal? @db.Decimal(5, 2)
+  discountRate     Decimal? @db.Decimal(5, 2)
+
+  schemeRevision SchemeRevision @relation(fields: [schemeRevisionId], references: [id], onDelete: Cascade)
+  ticketType     TicketType     @relation(fields: [ticketTypeId], references: [id], onDelete: Restrict)
+
+  @@index([schemeRevisionId])
+  @@index([ticketTypeId])
+}
+
+/// Binds a scheme to a party (Standard / Special tabs → incentive on assignment).
+model SchemeAssignment {
+  id               String   @id @default(cuid())
+  schemeId         String
+  agentId          String
+  bindingType      String   @default("STANDARD")
+  incentive        String?
+  assignedByUserId String
+  effectiveDate    DateTime @default(now())
+  createdAt        DateTime @default(now())
+
+  scheme Scheme @relation(fields: [schemeId], references: [id], onDelete: Cascade)
+  agent  Agent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([schemeId, agentId, bindingType])
+  @@index([agentId])
+}
+
+/// Wholesale purchase (cart → offline pay → vouchers). DRAFT = incomplete order.
+model PurchaseOrder {
+  id               String              @id @default(cuid())
+  orderReference   String              @unique
+  agentId          String
+  schemeRevisionId String?
+  status           PurchaseOrderStatus @default(DRAFT)
+  subtotal         Decimal             @default(0) @db.Decimal(12, 2)
+  incentiveTotal   Decimal             @default(0) @db.Decimal(12, 2)
+  discountTotal    Decimal             @default(0) @db.Decimal(12, 2)
+  totalPayable     Decimal             @default(0) @db.Decimal(12, 2)
+  invoiceId        String?
+  createdByUserId  String
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  agent          Agent                 @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  schemeRevision SchemeRevision?       @relation(fields: [schemeRevisionId], references: [id], onDelete: SetNull)
+  items          PurchaseOrderItem[]
+  vouchers       Voucher[]
+  paymentLinks   OfflinePaymentOrder[]
+
+  @@index([agentId, status])
+  @@index([createdAt])
+}
+
+model PurchaseOrderItem {
+  id              String  @id @default(cuid())
+  purchaseOrderId String
+  ticketTypeId    String
+  schemeProductId String?
+  quantity        Int
+  unitPrice       Decimal @db.Decimal(12, 2)
+  lineTotal       Decimal @db.Decimal(12, 2)
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  ticketType    TicketType    @relation(fields: [ticketTypeId], references: [id], onDelete: Restrict)
+
+  @@index([purchaseOrderId])
+  @@index([ticketTypeId])
+}
+
+model PaymentGroup {
+  id     String  @id @default(cuid())
+  name   String  @unique
+  active Boolean @default(true)
+
+  offlinePayments OfflinePayment[]
+}
+
+model PaymentType {
+  id     String  @id @default(cuid())
+  name   String  @unique
+  active Boolean @default(true)
+
+  offlinePayments OfflinePayment[]
+}
+
+/// Offline payment submitted by a party; Finance marks paid, Admin approves.
+model OfflinePayment {
+  id                   String               @id @default(cuid())
+  agentId              String
+  paymentGroupId       String?
+  paymentTypeId        String?
+  amount               Decimal              @db.Decimal(12, 2)
+  bankReference        String?
+  bankName             String?
+  slipDocumentId       String?
+  status               OfflinePaymentStatus @default(PENDING_APPROVAL)
+  submittedByUserId    String?
+  financePaidByUserId  String?
+  financePaidAt        DateTime?
+  adminApprovedByUserId String?
+  adminApprovedAt      DateTime?
+  remarks              String?              @db.Text
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+
+  agent        Agent                 @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  paymentGroup PaymentGroup?         @relation(fields: [paymentGroupId], references: [id], onDelete: SetNull)
+  paymentType  PaymentType?          @relation(fields: [paymentTypeId], references: [id], onDelete: SetNull)
+  orderLinks   OfflinePaymentOrder[]
+  history      PaymentStatusHistory[]
+
+  @@index([agentId, status])
+}
+
+/// Join: one offline payment can settle multiple purchase orders.
+model OfflinePaymentOrder {
+  id               String @id @default(cuid())
+  offlinePaymentId String
+  purchaseOrderId  String
+
+  offlinePayment OfflinePayment @relation(fields: [offlinePaymentId], references: [id], onDelete: Cascade)
+  purchaseOrder  PurchaseOrder  @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  @@unique([offlinePaymentId, purchaseOrderId])
+  @@index([purchaseOrderId])
+}
+
+/// Multi-actor audit trail for an offline payment (Finance → Admin).
+model PaymentStatusHistory {
+  id               String                @id @default(cuid())
+  offlinePaymentId String
+  fromStatus       OfflinePaymentStatus?
+  toStatus         OfflinePaymentStatus
+  actorUserId      String?
+  remarks          String?               @db.Text
+  createdAt        DateTime              @default(now())
+
+  offlinePayment OfflinePayment @relation(fields: [offlinePaymentId], references: [id], onDelete: Cascade)
+
+  @@index([offlinePaymentId])
+}
+
+/// Complimentary (free) tickets granted by admin to a party (min 20 enforced in service).
+model ComplimentaryGrant {
+  id               String         @id @default(cuid())
+  agentId          String
+  schemeRevisionId String?
+  quantity         Int
+  reason           String?        @db.Text
+  status           ApprovalStatus @default(APPROVED)
+  createdByUserId  String
+  createdAt        DateTime       @default(now())
+
+  agent    Agent     @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  vouchers Voucher[]
+
+  @@index([agentId])
+}
+
+/// An issued voucher unit (serial + QR). issued/used/available computed by grouping.
+model Voucher {
+  id                   String              @id @default(cuid())
+  serialNo             String              @unique
+  qrToken              String              @unique
+  source               VoucherSource
+  purchaseOrderId      String?
+  complimentaryGrantId String?
+  ticketTypeId         String
+  agentId              String
+  effectiveDate        DateTime
+  expiryDate           DateTime
+  redeemStatus         VoucherRedeemStatus @default(NEW)
+  redeemedAt           DateTime?
+  redeemedByUserId     String?
+  entranceGate         String?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  purchaseOrder      PurchaseOrder?      @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+  complimentaryGrant ComplimentaryGrant? @relation(fields: [complimentaryGrantId], references: [id], onDelete: SetNull)
+  ticketType         TicketType          @relation(fields: [ticketTypeId], references: [id], onDelete: Restrict)
+  agent              Agent               @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  redeemedByUser     User?               @relation("VoucherRedeemer", fields: [redeemedByUserId], references: [id], onDelete: SetNull)
+  redemptions        VoucherRedemption[]
+
+  @@index([agentId, redeemStatus])
+  @@index([purchaseOrderId])
+  @@index([ticketTypeId])
+  @@index([expiryDate])
+}
+
+/// Gate redemption history for a voucher.
+model VoucherRedemption {
+  id           String   @id @default(cuid())
+  voucherId    String
+  entranceGate String?
+  staffUserId  String?
+  status       String
+  createdAt    DateTime @default(now())
+
+  voucher Voucher @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+
+  @@index([voucherId])
+}

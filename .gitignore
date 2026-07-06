@@ -1,0 +1,24 @@
+# dependencies
+node_modules/
+node_modules
+frontend/node_modules/
+
+# Next.js and build output
+.next/
+frontend/.next/
+out/
+build/
+dist/
+
+# local env and secrets
+.env*
+!.env.example
+!**/.env.example
+
+# local uploads / generated files
+uploads/
+*.tsbuildinfo
+
+# logs and OS files
+*.log
+.DS_Store
