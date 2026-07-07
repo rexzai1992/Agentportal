@@ -10,6 +10,7 @@ export default function TransactionDetailsReportPage() {
       <ReportShell
         endpoint="/api/reports/purchase-details"
         fileName="transaction-details-report.xlsx"
+        extraParams={{ report: "transaction-details" }}
         showUserFilters
         columns={PURCHASE_DETAILS_COLUMNS}
       />

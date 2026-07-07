@@ -7,6 +7,13 @@ export async function GET(request: NextRequest) {
   return withAuth(request, ["AGENT", "ADMIN"], async (context) => {
     const sp = request.nextUrl.searchParams;
     const agentId = context.user.role === "AGENT" ? context.user.agentId ?? undefined : sp.get("agentId") ?? undefined;
+    const report = sp.get("report");
+    const exportMeta =
+      report === "transaction"
+        ? { sheetName: "Transaction Report", fileName: "transaction-report.xlsx" }
+        : report === "purchase-summary"
+          ? { sheetName: "Purchase Summary", fileName: "purchase-summary-report.xlsx" }
+          : { sheetName: "Purchase Report", fileName: "purchase-report.xlsx" };
     const rows = await portalReportController.purchase({
       agentId,
       from: sp.get("from") || undefined,
@@ -16,7 +23,7 @@ export async function GET(request: NextRequest) {
 
     if (sp.get("format") === "xlsx") {
       const buffer = await buildWorkbook({
-        sheetName: "Purchase Report",
+        sheetName: exportMeta.sheetName,
         columns: [
           { header: "Reference No.", key: "reference", width: 22 },
           { header: "Status", key: "status", width: 20 },
@@ -35,7 +42,7 @@ export async function GET(request: NextRequest) {
       return new NextResponse(new Uint8Array(buffer), {
         headers: {
           "Content-Type": XLSX_CONTENT_TYPE,
-          "Content-Disposition": 'attachment; filename="purchase-report.xlsx"'
+          "Content-Disposition": `attachment; filename="${exportMeta.fileName}"`
         }
       });
     }

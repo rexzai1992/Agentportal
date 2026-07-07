@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import QRCode from "qrcode";
@@ -8,8 +8,11 @@ import { ProtectedShell } from "@/components/layout/protected-shell";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { LoadingState } from "@/components/ui/loading";
 import { apiFetch } from "@/lib/fetcher";
+import { downloadFile } from "@/lib/download";
 import { formatDate } from "@/lib/utils";
 
 interface VoucherDetail {
@@ -41,6 +44,9 @@ export default function VoucherDetailPage() {
   const [loading, setLoading] = useState(true);
   const [qrPreview, setQrPreview] = useState<{ serialNo: string; dataUrl: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [exporting, setExporting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -54,6 +60,32 @@ export default function VoucherDetailPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const filteredVouchers = useMemo(() => {
+    if (!data) return [];
+    const term = search.trim().toLowerCase();
+    return data.vouchers.filter((v) => {
+      if (statusFilter && v.redeemStatus !== statusFilter) return false;
+      if (term && !v.serialNo.toLowerCase().includes(term)) return false;
+      return true;
+    });
+  }, [data, search, statusFilter]);
+
+  const exportExcel = async () => {
+    setExporting(true);
+    setError(null);
+    try {
+      await downloadFile(
+        `/api/vouchers/${params.orderId}?format=xlsx`,
+        undefined,
+        "voucher-detail.xlsx"
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to export");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const openQr = async (voucher: VoucherDetail["vouchers"][number]) => {
     setError(null);
@@ -108,6 +140,33 @@ export default function VoucherDetailPage() {
           <Card>
             <h3 className="section-title mb-3">Voucher Issued Detail</h3>
             {error ? <p className="mb-3 rounded-xl bg-red-50 p-2 text-sm text-red-600">{error}</p> : null}
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <Select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-auto"
+              >
+                <option value="">All Status</option>
+                <option value="NEW">New</option>
+                <option value="LOCKED">Locked</option>
+                <option value="REDEEMED">Redeemed</option>
+                <option value="EXPIRED">Expired</option>
+              </Select>
+              <Input
+                placeholder="Search serial no..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-56"
+              />
+              <div className="ml-auto flex items-center gap-3">
+                <span className="text-xs text-slate-500">
+                  {filteredVouchers.length} of {data.vouchers.length} vouchers
+                </span>
+                <Button variant="ghost" onClick={exportExcel} disabled={exporting}>
+                  {exporting ? "Exporting..." : "Export To Excel"}
+                </Button>
+              </div>
+            </div>
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead className="text-left text-xs uppercase tracking-wide text-slate-500">
@@ -122,7 +181,14 @@ export default function VoucherDetailPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.vouchers.map((v) => (
+                  {filteredVouchers.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-3 py-6 text-center text-slate-400">
+                        No vouchers match the filter.
+                      </td>
+                    </tr>
+                  ) : null}
+                  {filteredVouchers.map((v) => (
                     <tr key={v.id} className="border-t border-slate-100">
                       <td className="px-3 py-2 font-mono text-xs">{v.serialNo}</td>
                       <td className="px-3 py-2 text-slate-600">{formatDate(v.effectiveDate)}</td>

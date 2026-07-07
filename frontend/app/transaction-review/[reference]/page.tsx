@@ -22,6 +22,12 @@ interface OrderDetail {
   discountTotal: number;
   totalPayable: number;
   items: Array<{ id: string; productName: string; productType: string; quantity: number; unitPrice: number; lineTotal: number }>;
+  bankAccounts?: Array<{
+    outletName: string;
+    bankName: string | null;
+    bankAccountName: string | null;
+    bankAccountNo: string | null;
+  }>;
 }
 interface Lookup {
   id: string;
@@ -107,10 +113,27 @@ export default function TransactionReviewPage() {
             </div>
 
             <h3 className="section-title mb-2 mt-5">Bank Information</h3>
-            <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
-              <p className="font-semibold text-slate-800">CIMB Bank Account</p>
-              <p>Bank Account No: 1234-5678-9XXX</p>
-            </div>
+            {order.bankAccounts?.length ? (
+              <div className="space-y-2">
+                {order.bankAccounts.map((account) => (
+                  <div
+                    key={`${account.bankName}-${account.bankAccountNo}`}
+                    className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600"
+                  >
+                    <p className="font-semibold text-slate-800">
+                      {account.bankName || "Bank Account"}
+                    </p>
+                    {account.bankAccountName ? <p>Account Name: {account.bankAccountName}</p> : null}
+                    {account.bankAccountNo ? <p>Bank Account No: {account.bankAccountNo}</p> : null}
+                    <p className="mt-1 text-xs text-slate-400">{account.outletName}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-500">
+                <p>Bank details are not available for this outlet yet. Please contact the administrator.</p>
+              </div>
+            )}
           </Card>
 
           <Card>

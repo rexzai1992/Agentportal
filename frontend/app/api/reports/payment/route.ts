@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
 
     if (sp.get("format") === "xlsx") {
       const buffer = await buildWorkbook({
-        sheetName: "Payment Report",
+        sheetName: "Payment",
         columns: [
           { header: "Username", key: "username" },
           { header: "Company Name", key: "companyName", width: 28 },

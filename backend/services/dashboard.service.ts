@@ -22,7 +22,7 @@ const getNextInvoiceDate = (agreementType: AgreementType, cycleStart: Date): Dat
 export const getAdminDashboardData = async () => {
   const fromDate = subDays(new Date(), 120);
 
-  const [bookings, tickets, activeAgentsCount, outstandingInvoicesCount] = await Promise.all([
+  const [bookings, tickets, activeAgentsCount] = await Promise.all([
     prisma.booking.findMany({
       select: { agentId: true, createdAt: true, subtotal: true, totalPayable: true },
       where: { createdAt: { gte: fromDate } }
@@ -31,8 +31,7 @@ export const getAdminDashboardData = async () => {
       select: { checkedInAt: true },
       where: { createdAt: { gte: fromDate } }
     }),
-    prisma.agent.count({ where: { isActive: true } }),
-    prisma.invoice.count({ where: { status: { in: ["ISSUED", "OVERDUE"] } } })
+    prisma.agent.count({ where: { isActive: true } })
   ]);
 
   const agentIds = Array.from(new Set(bookings.map((booking) => booking.agentId)));
@@ -86,7 +85,6 @@ export const getAdminDashboardData = async () => {
       totalRevenue,
       totalTicketsSold: tickets.length,
       ticketsUsedToday,
-      outstandingInvoices: outstandingInvoicesCount ?? 0,
       activeAgents: activeAgentsCount ?? 0
     },
     charts: {

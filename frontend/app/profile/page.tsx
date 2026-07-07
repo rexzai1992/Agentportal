@@ -74,20 +74,42 @@ export default function ProfilePage() {
     load();
   }, [load]);
 
+  const isAgent = profile?.partyType === "AGENT";
+
   const submitRenewal = async () => {
     setError(null);
     if (!ssmDoc) {
       setError("SSM Form is required");
       return;
     }
+    if (isAgent) {
+      if (!kplDoc) {
+        setError("KPL Form is required");
+        return;
+      }
+      if (!licenseNo.trim()) {
+        setError("KPL License Number is required");
+        return;
+      }
+      if (!licenseExpiry) {
+        setError("KPL Expiry Date is required");
+        return;
+      }
+      const minExpiry = new Date();
+      minExpiry.setMonth(minExpiry.getMonth() + 2);
+      if (new Date(licenseExpiry) < minExpiry) {
+        setError("KPL Expiry Date must be at least 2 months from today");
+        return;
+      }
+    }
     setBusy(true);
     try {
       await apiFetch("/api/renewals", {
         method: "POST",
         body: JSON.stringify({
-          kplLicenseNo: licenseNo || undefined,
-          kplExpiryDate: licenseExpiry || undefined,
-          documentIds: [kplDoc, ssmDoc].filter(Boolean)
+          kplLicenseNo: isAgent ? licenseNo : undefined,
+          kplExpiryDate: isAgent ? licenseExpiry : undefined,
+          documentIds: isAgent ? [kplDoc, ssmDoc].filter(Boolean) : [ssmDoc].filter(Boolean)
         })
       });
       setModalOpen(false);
@@ -175,18 +197,27 @@ export default function ProfilePage() {
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Account Renewal">
         {error ? <p className="mb-3 rounded-xl bg-red-50 p-2 text-sm text-red-600">{error}</p> : null}
         <div className="space-y-3">
-          {profile?.partyType === "AGENT" ? (
-            <FileUpload label="KPL Form" docType="KPL" ownerType="RENEWAL" onUploaded={(r) => setKplDoc(r?.documentId ?? null)} />
+          {isAgent ? (
+            <FileUpload label="KPL Form" docType="KPL" ownerType="RENEWAL" required onUploaded={(r) => setKplDoc(r?.documentId ?? null)} />
           ) : null}
           <FileUpload label="SSM Form" docType="SSM" ownerType="RENEWAL" required onUploaded={(r) => setSsmDoc(r?.documentId ?? null)} />
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Licence No</label>
-            <Input value={licenseNo} onChange={(e) => setLicenseNo(e.target.value)} />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Licence Expired Date</label>
-            <Input type="date" value={licenseExpiry} onChange={(e) => setLicenseExpiry(e.target.value)} />
-          </div>
+          <p className="text-xs text-slate-500">File must comply with specified conditions to be submitted.</p>
+          {isAgent ? (
+            <>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">
+                  KPL License Number<span className="text-red-500">*</span>
+                </label>
+                <Input value={licenseNo} onChange={(e) => setLicenseNo(e.target.value)} required />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">
+                  KPL Expiry Date (Minimum 2 months before expiry)<span className="text-red-500">*</span>
+                </label>
+                <Input type="date" value={licenseExpiry} onChange={(e) => setLicenseExpiry(e.target.value)} required />
+              </div>
+            </>
+          ) : null}
           <Button className="w-full" onClick={submitRenewal} disabled={busy}>
             {busy ? "Submitting..." : "Submit"}
           </Button>

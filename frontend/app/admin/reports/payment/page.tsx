@@ -5,7 +5,7 @@ import { ReportShell } from "@/components/reports/report-shell";
 
 export default function PaymentReportPage() {
   return (
-    <ProtectedShell roles={["ADMIN"]} title="Payment Report" subtitle="Payment transactions">
+    <ProtectedShell roles={["ADMIN"]} title="Payment" subtitle="Payment transactions">
       <ReportShell
         endpoint="/api/reports/payment"
         fileName="payment-report.xlsx"

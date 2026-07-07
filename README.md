@@ -106,33 +106,3 @@ npm run dev                          # http://localhost:3000
 | Partner | `P20260001` | `partner123!` |
 | Finance | `finance@travel-agent.demo` | `finance123!` |
 | Staff | `staff@travel-agent.demo` | `staff123!` |
-
-## Documentation
-
-| Doc | Purpose |
-|---|---|
-| [docs/user-guide/index.html](docs/user-guide/index.html) | **Illustrated user guide** — every flow for every role, 42 real screenshots, print-to-PDF ready |
-| [docs/transfer/README.md](docs/transfer/README.md) | **Transfer & integration guide** — standalone `schema.sql`, JSON data export, env vars, module inventory |
-| [docs/transfer/qstudio/](docs/transfer/qstudio/) | **QSTUDIO plugin package** — tenant-safe `plugin_agentportal_*` install/uninstall SQL (validated) + model mapping |
-
-## Useful scripts
-
-```bash
-npm run build                        # production build
-npm run prisma:seed                  # reset + reseed demo data
-node scripts/export-data.mjs         # dump all tables → ../exports/*.json
-node scripts/capture-guide.mjs       # re-shoot all user-guide screenshots (needs `npm run start` running)
-```
-
-## Environment variables
-
-```
-DATABASE_URL             Postgres connection string
-JWT_ACCESS_SECRET        access-token secret (also signs voucher QR HMAC)
-JWT_REFRESH_SECRET       refresh-token secret
-JWT_ACCESS_EXPIRES_IN    default 15m
-JWT_REFRESH_EXPIRES_IN   default 7d
-APP_URL                  base URL (default http://localhost:3000)
-UPLOAD_DIR               upload folder (default: repo-root uploads/)
-EMAIL_DRIVER             email driver (default: console — logs instead of sending)
-```

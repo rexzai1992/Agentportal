@@ -7,6 +7,9 @@ interface CreateOutletBody {
   code: string;
   description?: string;
   address?: string;
+  bankName?: string;
+  bankAccountName?: string;
+  bankAccountNo?: string;
 }
 
 const normalizeOutletCode = (code: string) =>
@@ -30,6 +33,9 @@ export async function GET(request: NextRequest) {
           code: true,
           description: true,
           address: true,
+          bankName: true,
+          bankAccountName: true,
+          bankAccountNo: true,
           active: true,
           createdAt: true
         }
@@ -48,6 +54,9 @@ export async function POST(request: NextRequest) {
       const code = normalizeOutletCode(body.code ?? "");
       const description = body.description?.trim() || null;
       const address = body.address?.trim() || null;
+      const bankName = body.bankName?.trim() || null;
+      const bankAccountName = body.bankAccountName?.trim() || null;
+      const bankAccountNo = body.bankAccountNo?.trim() || null;
 
       if (!name || !code) {
         return fail("Outlet name and code are required", 400);
@@ -68,6 +77,9 @@ export async function POST(request: NextRequest) {
           code,
           description,
           address,
+          bankName,
+          bankAccountName,
+          bankAccountNo,
           active: true
         }
       });

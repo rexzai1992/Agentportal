@@ -5,7 +5,7 @@ import { ReportShell } from "@/components/reports/report-shell";
 
 export default function ComplimentaryReportPage() {
   return (
-    <ProtectedShell roles={["ADMIN"]} title="Complimentary Report" subtitle="Complimentary grants">
+    <ProtectedShell roles={["ADMIN"]} title="Complimentary" subtitle="Complimentary grants">
       <ReportShell
         endpoint="/api/reports/complimentary"
         fileName="complimentary-report.xlsx"

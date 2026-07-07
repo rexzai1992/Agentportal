@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Modal } from "@/components/ui/modal";
 import { apiFetch } from "@/lib/fetcher";
 
 interface OutletItem {
@@ -16,6 +17,9 @@ interface OutletItem {
   code: string;
   description?: string | null;
   address?: string | null;
+  bankName?: string | null;
+  bankAccountName?: string | null;
+  bankAccountNo?: string | null;
   active: boolean;
   createdAt: string;
 }
@@ -25,13 +29,19 @@ interface OutletForm {
   code: string;
   description: string;
   address: string;
+  bankName: string;
+  bankAccountName: string;
+  bankAccountNo: string;
 }
 
 const initialForm: OutletForm = {
   name: "",
   code: "",
   description: "",
-  address: ""
+  address: "",
+  bankName: "",
+  bankAccountName: "",
+  bankAccountNo: ""
 };
 
 const normalizeCodeInput = (value: string) =>
@@ -46,6 +56,38 @@ export default function OutletsPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<OutletItem | null>(null);
+  const [editForm, setEditForm] = useState({ bankName: "", bankAccountName: "", bankAccountNo: "" });
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const openEdit = (outlet: OutletItem) => {
+    setEditing(outlet);
+    setEditError(null);
+    setEditForm({
+      bankName: outlet.bankName ?? "",
+      bankAccountName: outlet.bankAccountName ?? "",
+      bankAccountNo: outlet.bankAccountNo ?? ""
+    });
+  };
+
+  const saveEdit = async () => {
+    if (!editing) return;
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      await apiFetch<OutletItem>(`/api/outlets/${editing.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(editForm)
+      });
+      setEditing(null);
+      await loadOutlets();
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : "Unable to update outlet");
+    } finally {
+      setEditSaving(false);
+    }
+  };
 
   const loadOutlets = useCallback(async () => {
     setLoading(true);
@@ -122,6 +164,32 @@ export default function OutletsPage() {
               onChange={(event) => setForm((prev) => ({ ...prev, address: event.target.value }))}
               rows={3}
             />
+            <div className="rounded-2xl border border-slate-200 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Bank Information (shown to agents at payment)
+              </p>
+              <div className="mt-2 grid gap-2">
+                <Input
+                  placeholder="Bank Name (e.g. CIMB Bank)"
+                  value={form.bankName}
+                  onChange={(event) => setForm((prev) => ({ ...prev, bankName: event.target.value }))}
+                />
+                <Input
+                  placeholder="Account Holder Name"
+                  value={form.bankAccountName}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, bankAccountName: event.target.value }))
+                  }
+                />
+                <Input
+                  placeholder="Bank Account No"
+                  value={form.bankAccountNo}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, bankAccountNo: event.target.value }))
+                  }
+                />
+              </div>
+            </div>
             <Button type="submit" disabled={saving}>
               {saving ? <Skeleton className="h-4 w-24 bg-white/70" /> : "Create Outlet"}
             </Button>
@@ -149,8 +217,9 @@ export default function OutletsPage() {
                   <tr className="border-b border-slate-200 text-left text-slate-500">
                     <th className="px-2 py-2">Outlet</th>
                     <th className="px-2 py-2">Code</th>
-                    <th className="px-2 py-2">Address</th>
+                    <th className="px-2 py-2">Bank Info</th>
                     <th className="px-2 py-2">Status</th>
+                    <th className="px-2 py-2"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -158,14 +227,28 @@ export default function OutletsPage() {
                     <tr key={outlet.id} className="border-b border-slate-100">
                       <td className="px-2 py-2">
                         <p className="font-semibold text-slate-800">{outlet.name}</p>
-                        <p className="text-xs text-slate-500">{outlet.description || "-"}</p>
+                        <p className="text-xs text-slate-500">{outlet.address || outlet.description || "-"}</p>
                       </td>
                       <td className="px-2 py-2 font-mono text-xs text-slate-700">{outlet.code}</td>
-                      <td className="px-2 py-2 text-slate-600">{outlet.address || "-"}</td>
+                      <td className="px-2 py-2 text-slate-600">
+                        {outlet.bankName || outlet.bankAccountNo ? (
+                          <>
+                            <p>{outlet.bankName || "-"}</p>
+                            <p className="text-xs text-slate-500">{outlet.bankAccountNo || "-"}</p>
+                          </>
+                        ) : (
+                          <span className="text-xs text-amber-600">Not set</span>
+                        )}
+                      </td>
                       <td className="px-2 py-2">
                         <Badge tone={outlet.active ? "success" : "warning"}>
                           {outlet.active ? "Active" : "Inactive"}
                         </Badge>
+                      </td>
+                      <td className="px-2 py-2 text-right">
+                        <Button variant="ghost" onClick={() => openEdit(outlet)}>
+                          Edit
+                        </Button>
                       </td>
                     </tr>
                   ))}
@@ -191,6 +274,49 @@ export default function OutletsPage() {
       </Card>
 
       {error ? <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
+
+      <Modal
+        open={Boolean(editing)}
+        onClose={() => setEditing(null)}
+        title={editing ? `Bank Information — ${editing.name}` : "Bank Information"}
+      >
+        {editError ? (
+          <p className="mb-3 rounded-xl bg-red-50 p-2 text-sm text-red-600">{editError}</p>
+        ) : null}
+        <div className="space-y-3">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Bank Name</label>
+            <Input
+              placeholder="e.g. CIMB Bank"
+              value={editForm.bankName}
+              onChange={(event) =>
+                setEditForm((prev) => ({ ...prev, bankName: event.target.value }))
+              }
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Account Holder Name</label>
+            <Input
+              value={editForm.bankAccountName}
+              onChange={(event) =>
+                setEditForm((prev) => ({ ...prev, bankAccountName: event.target.value }))
+              }
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Bank Account No</label>
+            <Input
+              value={editForm.bankAccountNo}
+              onChange={(event) =>
+                setEditForm((prev) => ({ ...prev, bankAccountNo: event.target.value }))
+              }
+            />
+          </div>
+          <Button className="w-full" onClick={saveEdit} disabled={editSaving}>
+            {editSaving ? "Saving..." : "Save Bank Information"}
+          </Button>
+        </div>
+      </Modal>
     </ProtectedShell>
   );
 }

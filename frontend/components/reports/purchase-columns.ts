@@ -2,7 +2,7 @@ import type { ReportColumn } from "@/components/reports/report-shell";
 
 /** Columns for the Purchase / Transaction reports (matches the OWG manual). */
 export const PURCHASE_REPORT_COLUMNS: ReportColumn[] = [
-  { key: "reference", label: "Reference No." },
+  { key: "reference", label: "Reference No.", type: "reference" },
   { key: "status", label: "Status" },
   { key: "username", label: "Username" },
   { key: "companyName", label: "Company Name" },
@@ -19,7 +19,7 @@ export const PURCHASE_REPORT_COLUMNS: ReportColumn[] = [
 export const PURCHASE_DETAILS_COLUMNS: ReportColumn[] = [
   { key: "username", label: "Username" },
   { key: "companyName", label: "Company Name" },
-  { key: "reference", label: "Reference No." },
+  { key: "reference", label: "Reference No.", type: "reference" },
   { key: "transactionDate", label: "Transaction Date", type: "datetime" },
   { key: "productType", label: "Product Type" },
   { key: "productName", label: "Product Name" },

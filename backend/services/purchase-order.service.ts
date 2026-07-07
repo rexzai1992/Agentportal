@@ -23,7 +23,11 @@ export const getAgentCatalog = async (agentId: string) => {
     where: { schemeId: { in: schemeIds }, effectiveDate: { lte: new Date() }, status: "ACTIVE" },
     orderBy: [{ schemeId: "asc" }, { revisionNumber: "desc" }],
     include: {
-      products: { include: { ticketType: { select: { name: true, category: true } } } }
+      products: {
+        include: {
+          ticketType: { select: { name: true, category: true, outlet: { select: { name: true } } } }
+        }
+      }
     }
   });
 
@@ -38,6 +42,7 @@ export const getAgentCatalog = async (agentId: string) => {
     ticketTypeId: string;
     name: string;
     category: string;
+    outletName: string;
     price: number;
     minQty: number;
     maxQty: number | null;
@@ -53,6 +58,7 @@ export const getAgentCatalog = async (agentId: string) => {
         ticketTypeId: p.ticketTypeId,
         name: p.ticketType.name,
         category: p.ticketType.category,
+        outletName: p.ticketType.outlet.name,
         price: asNumber(p.price),
         minQty: p.minQty,
         maxQty: p.maxQty,
@@ -152,7 +158,16 @@ const serializeOrder = (order: {
     quantity: number;
     unitPrice: unknown;
     lineTotal: unknown;
-    ticketType: { name: string; category: string };
+    ticketType: {
+      name: string;
+      category: string;
+      outlet?: {
+        name: string;
+        bankName: string | null;
+        bankAccountName: string | null;
+        bankAccountNo: string | null;
+      } | null;
+    };
   }>;
 }) => ({
   id: order.id,
@@ -172,7 +187,26 @@ const serializeOrder = (order: {
     quantity: i.quantity,
     unitPrice: asNumber(i.unitPrice as number),
     lineTotal: asNumber(i.lineTotal as number)
-  }))
+  })),
+  bankAccounts: Array.from(
+    new Map(
+      order.items
+        .map((i) => i.ticketType.outlet)
+        .filter(
+          (outlet): outlet is NonNullable<typeof outlet> =>
+            Boolean(outlet && (outlet.bankName || outlet.bankAccountNo))
+        )
+        .map((outlet) => [
+          `${outlet.bankName}|${outlet.bankAccountNo}`,
+          {
+            outletName: outlet.name,
+            bankName: outlet.bankName,
+            bankAccountName: outlet.bankAccountName,
+            bankAccountNo: outlet.bankAccountNo
+          }
+        ])
+    ).values()
+  )
 });
 
 export const getPurchaseOrder = async (orderReference: string, agentId?: string) => {
@@ -180,7 +214,19 @@ export const getPurchaseOrder = async (orderReference: string, agentId?: string)
     where: { orderReference },
     include: {
       agent: { select: { companyName: true, accountCode: true } },
-      items: { include: { ticketType: { select: { name: true, category: true } } } }
+      items: {
+        include: {
+          ticketType: {
+            select: {
+              name: true,
+              category: true,
+              outlet: {
+                select: { name: true, bankName: true, bankAccountName: true, bankAccountNo: true }
+              }
+            }
+          }
+        }
+      }
     }
   });
   if (!order) throw new Error("Purchase order not found");

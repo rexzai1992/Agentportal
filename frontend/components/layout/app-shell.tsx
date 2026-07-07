@@ -141,7 +141,8 @@ const navByRole: Record<AppShellProps["user"]["role"], NavItem[]> = {
         { href: "/admin/reports/complimentary", label: "Complimentary", icon: BarChart3 },
         { href: "/admin/reports/payment", label: "Payment", icon: BarChart3 }
       ]
-    }
+    },
+    { href: "/documentation", label: "Documentation", icon: BookOpen }
   ],
   AGENT: [
     { href: "/agent/dashboard", label: "Dashboard", icon: LayoutDashboard },

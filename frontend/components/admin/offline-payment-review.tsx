@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/ui/loading";
 import { StatusUpdatePanel, type VerificationDecision } from "@/components/shared/status-update-panel";
 import { apiFetch } from "@/lib/fetcher";
+import { formatStatusLabel, statusTone } from "@/lib/status";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 
 interface PaymentDetail {
@@ -82,9 +83,7 @@ export const OfflinePaymentReview = ({ id, role }: { id: string; role: "ADMIN" |
         <Card>
           <div className="mb-3 flex items-center justify-between">
             <h3 className="section-title">Purchase Header</h3>
-            <Badge tone={data.status === "ORDER_CONFIRMED" ? "success" : data.status === "REJECTED" ? "danger" : "warning"}>
-              {data.status.replace(/_/g, " ")}
-            </Badge>
+            <Badge tone={statusTone(data.status)}>{formatStatusLabel(data.status)}</Badge>
           </div>
           <div className="grid gap-3 text-sm sm:grid-cols-2">
             <Info label="Company" value={data.companyName} />

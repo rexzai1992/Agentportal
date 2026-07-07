@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import Link from "next/link";
 import { ProtectedShell } from "@/components/layout/protected-shell";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { Card } from "@/components/ui/card";
@@ -35,9 +34,7 @@ const PortalSummary = () => {
   return (
     <section className="bento-grid sm:grid-cols-2 xl:grid-cols-5">
       {PORTAL_CARDS.map((card) => (
-        <Link key={card.key} href={card.href}>
-          <StatCard label={card.label} value={String(counts[card.key])} />
-        </Link>
+        <StatCard key={card.key} label={card.label} value={String(counts[card.key])} href={card.href} />
       ))}
     </section>
   );
@@ -72,7 +69,6 @@ interface DashboardResponse {
     totalRevenue: number;
     totalTicketsSold: number;
     ticketsUsedToday: number;
-    outstandingInvoices: number;
     activeAgents: number;
   };
   charts: {
@@ -125,16 +121,16 @@ export default function AdminDashboardPage() {
         <LoadingState label="Loading dashboard metrics..." />
       ) : (
         <>
-          <section className="bento-grid sm:grid-cols-2 xl:grid-cols-5">
-            <StatCard label="Total Revenue" value={formatCurrency(data.summary.totalRevenue)} tone="success" />
-            <StatCard label="Tickets Sold" value={String(data.summary.totalTicketsSold)} />
-            <StatCard label="Used Today" value={String(data.summary.ticketsUsedToday)} />
+          <section className="bento-grid sm:grid-cols-2 xl:grid-cols-4">
             <StatCard
-              label="Outstanding Invoices"
-              value={String(data.summary.outstandingInvoices)}
-              tone={data.summary.outstandingInvoices > 0 ? "warning" : "default"}
+              label="Total Revenue"
+              value={formatCurrency(data.summary.totalRevenue)}
+              tone="success"
+              href="/admin/reports/transaction"
             />
-            <StatCard label="Active Agents" value={String(data.summary.activeAgents)} />
+            <StatCard label="Tickets Sold" value={String(data.summary.totalTicketsSold)} href="/admin/reports/ticket" />
+            <StatCard label="Used Today" value={String(data.summary.ticketsUsedToday)} href="/admin/reports/ticket" />
+            <StatCard label="Active Agents" value={String(data.summary.activeAgents)} href="/admin/agents-active" />
           </section>
 
           <section className="bento-grid xl:grid-cols-12">

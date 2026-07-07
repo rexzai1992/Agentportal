@@ -84,13 +84,14 @@ export const purchaseReport = async (params: ReportParams) => {
 
   return orders.map((o) => {
     const pay = o.paymentLinks[0]?.offlinePayment;
+    const productTypes = Array.from(new Set(o.items.map((item) => item.ticketType.category))).join(", ");
     return {
       reference: o.orderReference,
       status: o.status,
       username: o.agent.accountCode ?? "-",
       companyName: o.agent.companyName,
       transactionDate: o.createdAt.toISOString(),
-      productType: o.items[0]?.ticketType.category ?? "-",
+      productType: productTypes || "-",
       nettAmount: asNumber(o.totalPayable),
       paymentDate: pay ? (pay.financePaidAt ?? pay.createdAt).toISOString() : null,
       paymentAmount: pay ? asNumber(pay.amount) : null,
@@ -187,19 +188,79 @@ export const topPurchaseReport = async (params: ReportParams & { limit?: number 
     .map((g) => ({ ...g, nettAmount: Number(g.nettAmount.toFixed(2)) }));
 };
 
-/** Ticket report: search a voucher by serial no or QR code. */
-export const ticketReport = async (params: { serial?: string; qr?: string }) => {
-  if (!params.serial && !params.qr) return [];
+export const voucherIssuedReport = async (params: ReportParams) => {
+  const vouchers = await prisma.voucher.findMany({
+    where: {
+      agentId: params.agentId,
+      createdAt: rangeFilter(params.from, params.to)
+    },
+    include: {
+      ticketType: { select: { name: true, category: true } },
+      agent: { select: { companyName: true, accountCode: true } },
+      purchaseOrder: { select: { orderReference: true } }
+    },
+    orderBy: { createdAt: "desc" }
+  });
+
+  const groups = new Map<
+    string,
+    {
+      username: string;
+      companyName: string;
+      reference: string;
+      productType: string;
+      productName: string;
+      issuedQty: number;
+      usedQty: number;
+      effectiveDate: string;
+      expiryDate: string;
+    }
+  >();
+
+  for (const voucher of vouchers) {
+    const key = `${voucher.purchaseOrderId ?? voucher.complimentaryGrantId}:${voucher.ticketTypeId}`;
+    const existing = groups.get(key);
+    if (existing) {
+      existing.issuedQty += 1;
+      if (voucher.redeemStatus === "REDEEMED") existing.usedQty += 1;
+      continue;
+    }
+
+    groups.set(key, {
+      username: voucher.agent.accountCode ?? "-",
+      companyName: voucher.agent.companyName,
+      reference: voucher.purchaseOrder?.orderReference ?? "COMPLIMENTARY",
+      productType: voucher.ticketType.category,
+      productName: voucher.ticketType.name,
+      issuedQty: 1,
+      usedQty: voucher.redeemStatus === "REDEEMED" ? 1 : 0,
+      effectiveDate: voucher.effectiveDate.toISOString(),
+      expiryDate: voucher.expiryDate.toISOString()
+    });
+  }
+
+  return Array.from(groups.values()).map((group) => ({
+    ...group,
+    availableQty: group.issuedQty - group.usedQty
+  }));
+};
+
+/** Ticket report: all issued tickets, filterable by user/date, or by serial no / QR code. */
+export const ticketReport = async (
+  params: ReportParams & { serial?: string; qr?: string }
+) => {
+  const searchFilters = [
+    params.serial ? { serialNo: { contains: params.serial, mode: "insensitive" as const } } : undefined,
+    params.qr ? { qrToken: params.qr } : undefined
+  ].filter(Boolean);
 
   const vouchers = await prisma.voucher.findMany({
     where: {
-      OR: [
-        params.serial ? { serialNo: { contains: params.serial, mode: "insensitive" } } : undefined,
-        params.qr ? { qrToken: params.qr } : undefined
-      ].filter(Boolean) as never
+      agentId: params.agentId,
+      createdAt: rangeFilter(params.from, params.to),
+      ...(searchFilters.length ? { OR: searchFilters as never } : {})
     },
-    orderBy: { serialNo: "asc" },
-    take: 100,
+    orderBy: { createdAt: "desc" },
     include: {
       ticketType: { select: { name: true, category: true } },
       agent: { select: { companyName: true, accountCode: true } },

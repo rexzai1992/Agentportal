@@ -6,7 +6,8 @@ import {
   purchaseDetailsReport,
   purchaseReport,
   ticketReport,
-  topPurchaseReport
+  topPurchaseReport,
+  voucherIssuedReport
 } from "@backend/services/portal-report.service";
 
 export const portalReportController = {
@@ -15,6 +16,7 @@ export const portalReportController = {
   purchase: purchaseReport,
   purchaseDetails: purchaseDetailsReport,
   topPurchase: topPurchaseReport,
+  voucherIssued: voucherIssuedReport,
   ticket: ticketReport,
   payment: paymentReport,
   complimentary: complimentaryReport

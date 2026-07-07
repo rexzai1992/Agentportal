@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ProtectedShell } from "@/components/layout/protected-shell";
 import { Card } from "@/components/ui/card";
 import { LoadingState } from "@/components/ui/loading";
+import { ReferenceLink } from "@/components/shared/transaction-detail-modal";
 import { apiFetch } from "@/lib/fetcher";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 
@@ -53,12 +54,17 @@ export default function IncompleteOrdersPage() {
               <tbody>
                 {rows.map((row) => (
                   <tr key={row.orderReference} className="border-t border-slate-100">
-                    <td className="px-3 py-2 font-medium text-slate-800">{row.orderReference}</td>
+                    <td className="px-3 py-2 font-medium text-slate-800">
+                      <ReferenceLink reference={row.orderReference} />
+                    </td>
                     <td className="px-3 py-2 text-slate-600">{formatDateTime(row.transactionDate)}</td>
                     <td className="px-3 py-2 text-slate-600">{formatCurrency(row.totalPayable)}</td>
                     <td className="px-3 py-2">
-                      <Link href={`/transaction-review/${row.orderReference}`} className="font-semibold text-emerald-700">
-                        Complete
+                      <Link
+                        href={`/transaction-review/${row.orderReference}`}
+                        className="inline-flex items-center rounded-full bg-emerald-400 px-4 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-500"
+                      >
+                        Complete →
                       </Link>
                     </td>
                   </tr>

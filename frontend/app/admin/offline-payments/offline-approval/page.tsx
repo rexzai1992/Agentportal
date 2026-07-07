@@ -6,7 +6,7 @@ import { OfflinePaymentList } from "@/components/admin/offline-payment-list";
 export default function AdminOfflineApprovalPage() {
   return (
     <ProtectedShell roles={["ADMIN"]} title="Offline Payment Approval" subtitle="All offline payments">
-      <OfflinePaymentList basePath="/admin/offline-payments" />
+      <OfflinePaymentList basePath="/admin/offline-payments" canApprove />
     </ProtectedShell>
   );
 }

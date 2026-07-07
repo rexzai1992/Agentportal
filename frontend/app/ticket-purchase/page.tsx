@@ -16,6 +16,7 @@ interface CatalogItem {
   ticketTypeId: string;
   name: string;
   category: string;
+  outletName: string;
   price: number;
   minQty: number;
   maxQty: number | null;
@@ -26,7 +27,7 @@ export default function TicketPurchasePage() {
   const router = useRouter();
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [category, setCategory] = useState("ALL");
+  const [outlet, setOutlet] = useState("ALL");
   const [cart, setCart] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -46,11 +47,11 @@ export default function TicketPurchasePage() {
     load();
   }, [load]);
 
-  const categories = useMemo(
-    () => ["ALL", ...Array.from(new Set(catalog.map((c) => c.category)))],
+  const outlets = useMemo(
+    () => ["ALL", ...Array.from(new Set(catalog.map((c) => c.outletName)))],
     [catalog]
   );
-  const visible = catalog.filter((c) => category === "ALL" || c.category === category);
+  const visible = catalog.filter((c) => outlet === "ALL" || c.outletName === outlet);
 
   const addToCart = (item: CatalogItem, qty: number) => {
     let q = qty;
@@ -100,11 +101,11 @@ export default function TicketPurchasePage() {
         <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
           <Card>
             <div className="mb-3 flex items-center gap-2">
-              <label className="text-sm font-medium text-slate-700">Product Type</label>
-              <Select value={category} onChange={(e) => setCategory(e.target.value)} className="max-w-[220px]">
-                {categories.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
+              <label className="text-sm font-medium text-slate-700">Outlet</label>
+              <Select value={outlet} onChange={(e) => setOutlet(e.target.value)} className="max-w-[220px]">
+                {outlets.map((o) => (
+                  <option key={o} value={o}>
+                    {o === "ALL" ? "All Outlets" : o}
                   </option>
                 ))}
               </Select>
@@ -190,7 +191,7 @@ const PurchaseRow = ({
     <tr className="border-t border-slate-100">
       <td className="px-2 py-2">
         <p className="font-medium text-slate-800">{item.name}</p>
-        <p className="text-xs text-slate-500">{item.category}</p>
+        <p className="text-xs text-slate-500">{item.outletName} · {item.category}</p>
       </td>
       <td className="px-2 py-2">{formatCurrency(item.price)}</td>
       <td className="px-2 py-2">

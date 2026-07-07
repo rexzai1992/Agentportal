@@ -5,7 +5,6 @@ const actions = [
   { href: "/agents", label: "Add Agent" },
   { href: "/products", label: "Add Product" },
   { href: "/agents", label: "Top Up Agent" },
-  { href: "/invoices", label: "Generate Invoice" },
   { href: "/scanner", label: "Open Scanner" },
   { href: "/reports", label: "Export Report" }
 ];

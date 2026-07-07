@@ -54,9 +54,9 @@ const AgentPortalSection = () => {
 
       {stats ? (
         <section className="bento-grid sm:grid-cols-3">
-          <StatCard label="Pending Approvals" value={String(stats.pendingApproval)} tone="warning" />
-          <StatCard label="Incomplete Orders" value={String(stats.incompleteOrders)} />
-          <StatCard label="Today's Purchases" value={String(stats.todaysPurchases)} />
+          <StatCard label="Pending Approvals" value={String(stats.pendingApproval)} tone="warning" href="/reports/purchase" />
+          <StatCard label="Incomplete Orders" value={String(stats.incompleteOrders)} href="/incomplete-orders" />
+          <StatCard label="Today's Purchases" value={String(stats.todaysPurchases)} href="/reports/purchase" />
         </section>
       ) : null}
 
@@ -147,10 +147,9 @@ export default function AgentDashboardPage() {
       ) : (
         <>
           {data.agreementType === "PREPAID" ? (
-            <section className="bento-grid sm:grid-cols-2 xl:grid-cols-4">
+            <section className="bento-grid sm:grid-cols-3">
               <StatCard label="Current Credit Balance" value={formatCurrency(data.stats.creditBalance)} />
-              <StatCard label="Tickets Sold Today" value={String(data.stats.ticketsSoldToday)} />
-              <StatCard label="Commission Earned" value={formatCurrency(data.stats.commissionEarned)} />
+              <StatCard label="Tickets Sold Today" value={String(data.stats.ticketsSoldToday)} href="/vouchers" />
               <StatCard
                 label="Balance Status"
                 value={data.stats.lowBalanceWarning ? "Low Balance" : "Healthy"}
@@ -158,14 +157,13 @@ export default function AgentDashboardPage() {
               />
             </section>
           ) : (
-            <section className="bento-grid sm:grid-cols-2 xl:grid-cols-4">
+            <section className="bento-grid sm:grid-cols-3">
               <StatCard label="Outstanding Amount" value={formatCurrency(data.stats.outstandingBalance)} tone="warning" />
               <StatCard
                 label="Next Invoice Date"
                 value={data.stats.nextInvoiceDate ? formatDate(data.stats.nextInvoiceDate) : "-"}
               />
-              <StatCard label="Total Tickets Sold" value={String(data.stats.totalTicketsSold)} />
-              <StatCard label="Commission Earned" value={formatCurrency(data.stats.commissionEarned)} />
+              <StatCard label="Total Tickets Sold" value={String(data.stats.totalTicketsSold)} href="/vouchers" />
             </section>
           )}
 

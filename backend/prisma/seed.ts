@@ -127,7 +127,10 @@ async function main() {
         name: "Main Outlet",
         code: "MAIN",
         description: "Primary ticket redemption outlet",
-        address: "Main entrance"
+        address: "Main entrance",
+        bankName: "CIMB Bank",
+        bankAccountName: "Main Outlet Sdn Bhd",
+        bankAccountNo: "1234-5678-9012"
       }
     }),
     prisma.outlet.create({
@@ -135,7 +138,10 @@ async function main() {
         name: "Travel Desk Outlet",
         code: "TRAVEL-DESK",
         description: "Partner and agent ticket service counter",
-        address: "Travel desk lobby"
+        address: "Travel desk lobby",
+        bankName: "Maybank",
+        bankAccountName: "Travel Desk Sdn Bhd",
+        bankAccountNo: "5544-3322-1100"
       }
     })
   ]);

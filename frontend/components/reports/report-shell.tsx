@@ -6,14 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { LoadingState } from "@/components/ui/loading";
+import { Badge } from "@/components/ui/badge";
 import { apiFetch } from "@/lib/fetcher";
 import { downloadFile } from "@/lib/download";
-import { formatCurrency, formatDateTime } from "@/lib/utils";
+import { formatStatusLabel, statusTone } from "@/lib/status";
+import { ReferenceLink } from "@/components/shared/transaction-detail-modal";
+import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 
 export interface ReportColumn {
   key: string;
   label: string;
-  type?: "text" | "currency" | "datetime";
+  type?: "text" | "currency" | "date" | "datetime" | "status" | "reference";
 }
 
 interface UserOption {
@@ -28,11 +31,12 @@ interface ReportShellProps {
   fileName: string;
   /** Show Filter By User + Filter By Company dropdowns (admin reports). */
   showUserFilters?: boolean;
+  extraParams?: Record<string, string>;
 }
 
 const PAGE_SIZES = [15, 30, 50, 100];
 
-export const ReportShell = ({ endpoint, columns, fileName, showUserFilters }: ReportShellProps) => {
+export const ReportShell = ({ endpoint, columns, fileName, showUserFilters, extraParams }: ReportShellProps) => {
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
   const [from, setFrom] = useState("");
@@ -46,11 +50,14 @@ export const ReportShell = ({ endpoint, columns, fileName, showUserFilters }: Re
 
   const buildQuery = useCallback(() => {
     const sp = new URLSearchParams();
+    Object.entries(extraParams ?? {}).forEach(([key, value]) => {
+      if (value) sp.set(key, value);
+    });
     if (from) sp.set("from", from);
     if (to) sp.set("to", to);
     if (agentId) sp.set("agentId", agentId);
     return sp;
-  }, [from, to, agentId]);
+  }, [from, to, agentId, extraParams]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -92,10 +99,19 @@ export const ReportShell = ({ endpoint, columns, fileName, showUserFilters }: Re
     }
   };
 
+  const isStatusColumn = (col: ReportColumn) =>
+    col.type === "status" || col.key.toLowerCase() === "status" || col.key.toLowerCase().endsWith("status");
+
   const render = (col: ReportColumn, value: unknown) => {
     if (value === null || value === undefined || value === "") return "-";
+    if (col.type === "reference") return <ReferenceLink reference={String(value)} />;
     if (col.type === "currency") return formatCurrency(Number(value));
+    if (col.type === "date") return formatDate(String(value));
     if (col.type === "datetime") return formatDateTime(String(value));
+    if (isStatusColumn(col)) {
+      const status = String(value);
+      return <Badge tone={statusTone(status)}>{formatStatusLabel(status)}</Badge>;
+    }
     return String(value).replace(/_/g, " ");
   };
 
