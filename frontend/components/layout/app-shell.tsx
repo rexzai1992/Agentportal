@@ -15,8 +15,9 @@ import {
   LayoutDashboard,
   LogOut,
   Megaphone,
-  Menu,
   Package2,
+  PanelLeftClose,
+  PanelLeftOpen,
   RefreshCw,
   ScanLine,
   Settings2,
@@ -32,6 +33,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/fetcher";
 import { clearSessionCache } from "@/hooks/use-session";
+
+const SIDEBAR_EXPANDED_STORAGE_KEY = "travel-agent-sidebar-expanded";
 
 interface AppShellProps {
   user: {
@@ -176,7 +179,7 @@ const navByRole: Record<AppShellProps["user"]["role"], NavItem[]> = {
 export const AppShell = ({ user, title, subtitle, children }: AppShellProps) => {
   const pathname = usePathname();
   const router = useRouter();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [openNavGroups, setOpenNavGroups] = useState<Record<string, boolean>>({});
 
   const navItems = useMemo(() => {
@@ -215,8 +218,19 @@ export const AppShell = ({ user, title, subtitle, children }: AppShellProps) => 
     }
   };
 
+  const setSidebarExpanded = (expanded: boolean) => {
+    setSidebarOpen(expanded);
+    window.localStorage.setItem(SIDEBAR_EXPANDED_STORAGE_KEY, String(expanded));
+  };
+
   useEffect(() => {
-    setSidebarOpen(false);
+    const saved = window.localStorage.getItem(SIDEBAR_EXPANDED_STORAGE_KEY);
+    if (saved !== null) {
+      setSidebarOpen(saved === "true");
+    }
+  }, []);
+
+  useEffect(() => {
     setOpenNavGroups((prev) => {
       const next = { ...prev };
       for (const item of navItems) {
@@ -238,7 +252,6 @@ export const AppShell = ({ user, title, subtitle, children }: AppShellProps) => 
         href={item.href}
         title={item.label}
         aria-label={item.label}
-        onClick={() => setSidebarOpen(false)}
         className={cn(
           "flex items-center rounded-xl text-sm font-semibold transition",
           child
@@ -248,15 +261,15 @@ export const AppShell = ({ user, title, subtitle, children }: AppShellProps) => 
               : "justify-center px-3 py-2.5",
           child
             ? active
-              ? "text-white"
-              : "text-slate-300 hover:text-white"
+              ? "bg-white/20 text-white"
+              : "text-white/90 hover:bg-white/15 hover:text-white"
             : active
               ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
               : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
         )}
       >
         {child ? (
-          <span className={cn("w-4 text-center", active ? "text-white" : "text-slate-400")}>-</span>
+          <span className="w-4 text-center text-white/85">-</span>
         ) : (
           <Icon className="h-4 w-4 shrink-0" />
         )}
@@ -282,12 +295,12 @@ export const AppShell = ({ user, title, subtitle, children }: AppShellProps) => 
           title={item.label}
           aria-label={item.label}
           onClick={() => {
-            setSidebarOpen(true);
+            setSidebarExpanded(true);
             setOpenNavGroups((prev) => ({ ...prev, [item.id]: true }));
           }}
           className={cn(
             "flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition",
-            active ? "bg-emerald-400 text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+            active ? "bg-emerald-300 text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
           )}
         >
           <Icon className="h-4 w-4 shrink-0" />
@@ -300,7 +313,7 @@ export const AppShell = ({ user, title, subtitle, children }: AppShellProps) => 
         key={item.id}
         className={cn(
           "rounded-2xl p-1.5 transition",
-          open || active ? "bg-emerald-400 text-white shadow-[0_18px_38px_-28px_rgba(52,211,153,0.95)]" : "text-slate-600"
+          open || active ? "bg-emerald-300 text-white shadow-[0_18px_38px_-28px_rgba(52,211,153,0.75)]" : "text-slate-600"
         )}
       >
         <button
@@ -311,7 +324,7 @@ export const AppShell = ({ user, title, subtitle, children }: AppShellProps) => 
           onClick={() => setOpenNavGroups((prev) => ({ ...prev, [item.id]: !open }))}
           className={cn(
             "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition",
-            open || active ? "text-white hover:bg-white/5" : "hover:bg-slate-100 hover:text-slate-900"
+            open || active ? "text-white hover:bg-white/15" : "hover:bg-slate-100 hover:text-slate-900"
           )}
         >
           <Icon className="h-4 w-4 shrink-0" />
@@ -331,21 +344,30 @@ export const AppShell = ({ user, title, subtitle, children }: AppShellProps) => 
             "fixed bottom-3 left-3 top-3 z-50 overflow-auto rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition-[width] duration-300 sm:bottom-5 sm:left-5 sm:top-5",
             sidebarOpen ? "w-[286px]" : "w-[92px]"
           )}
-          onMouseEnter={() => setSidebarOpen(true)}
-          onMouseLeave={() => setSidebarOpen(false)}
         >
           <div
             className={cn(
               "border-b border-slate-200 pb-3",
-              sidebarOpen ? "flex items-center gap-2" : "flex items-center justify-center"
+              sidebarOpen ? "flex items-center gap-2" : "grid justify-items-center gap-2"
             )}
           >
             <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-400 text-xs font-black tracking-wide text-white">
               TA
             </span>
             {sidebarOpen ? (
-              <p className="truncate text-sm font-semibold tracking-wide text-slate-800">Travel Agent</p>
+              <p className="min-w-0 flex-1 truncate text-sm font-semibold tracking-wide text-slate-800">
+                Travel Agent
+              </p>
             ) : null}
+            <button
+              type="button"
+              aria-label={sidebarOpen ? "Minimize sidebar" : "Expand sidebar"}
+              title={sidebarOpen ? "Minimize sidebar" : "Expand sidebar"}
+              onClick={() => setSidebarExpanded(!sidebarOpen)}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-200"
+            >
+              {sidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
+            </button>
           </div>
 
           <nav className="mt-3 grid gap-1">
@@ -398,21 +420,9 @@ export const AppShell = ({ user, title, subtitle, children }: AppShellProps) => 
           )}
         >
           <header className="bento-card flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-            <div className="flex items-start gap-3">
-              <Button
-                aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-                title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-                className="h-10 w-10 rounded-2xl p-0"
-                variant="ghost"
-                onClick={() => setSidebarOpen((prev) => !prev)}
-              >
-                <Menu className="h-4 w-4" />
-              </Button>
-
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">{title}</h1>
-                {subtitle ? <p className="mt-1 text-sm text-slate-500">{subtitle}</p> : null}
-              </div>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">{title}</h1>
+              {subtitle ? <p className="mt-1 text-sm text-slate-500">{subtitle}</p> : null}
             </div>
 
             <div className="ml-auto flex max-w-[220px] items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 ring-1 ring-slate-200">

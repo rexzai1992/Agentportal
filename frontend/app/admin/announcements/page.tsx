@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Pencil, Power, PowerOff, X } from "lucide-react";
 import { ProtectedShell } from "@/components/layout/protected-shell";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,26 +22,36 @@ interface Announcement {
   effectiveDate: string;
   expiryDate: string;
   status: "ACTIVE" | "INACTIVE" | "EXPIRED";
+  mediaDocumentId?: string | null;
 }
 
 const tone = (s: string) => (s === "ACTIVE" ? "success" : s === "EXPIRED" ? "danger" : "default");
+
+const emptyForm = {
+  title: "",
+  displayType: "HOME" as "HOME" | "LOGIN",
+  audienceAgent: true,
+  audiencePartner: false,
+  effectiveDate: "",
+  expiryDate: "",
+  status: "ACTIVE" as "ACTIVE" | "INACTIVE"
+};
+
+const toDateInput = (value: string) => {
+  if (!value) return "";
+  return new Date(value).toISOString().slice(0, 10);
+};
 
 export default function AnnouncementsPage() {
   const [rows, setRows] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [actionId, setActionId] = useState<string | null>(null);
 
-  const [form, setForm] = useState({
-    title: "",
-    displayType: "HOME" as "HOME" | "LOGIN",
-    audienceAgent: true,
-    audiencePartner: false,
-    effectiveDate: "",
-    expiryDate: "",
-    status: "ACTIVE" as "ACTIVE" | "INACTIVE"
-  });
+  const [form, setForm] = useState(emptyForm);
   const [mediaDocId, setMediaDocId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -56,38 +67,73 @@ export default function AnnouncementsPage() {
     load();
   }, [load]);
 
+  const resetForm = () => {
+    setShowForm(false);
+    setEditingId(null);
+    setError(null);
+    setForm(emptyForm);
+    setMediaDocId(null);
+  };
+
+  const startAdd = () => {
+    if (showForm && !editingId) {
+      resetForm();
+      return;
+    }
+    setShowForm(true);
+    setEditingId(null);
+    setError(null);
+    setForm(emptyForm);
+    setMediaDocId(null);
+  };
+
+  const startEdit = (row: Announcement) => {
+    setShowForm(true);
+    setEditingId(row.id);
+    setError(null);
+    setForm({
+      title: row.title,
+      displayType: row.displayType,
+      audienceAgent: row.audience === "AGENT" || row.audience === "BOTH",
+      audiencePartner: row.audience === "PARTNER" || row.audience === "BOTH",
+      effectiveDate: toDateInput(row.effectiveDate),
+      expiryDate: toDateInput(row.expiryDate),
+      status: row.status === "EXPIRED" ? "INACTIVE" : row.status
+    });
+    setMediaDocId(row.mediaDocumentId ?? null);
+  };
+
+  const resolveAudience = () =>
+    form.displayType === "LOGIN"
+      ? "BOTH"
+      : form.audienceAgent && form.audiencePartner
+        ? "BOTH"
+        : form.audiencePartner
+          ? "PARTNER"
+          : "AGENT";
+
   const submit = async () => {
     setError(null);
     if (!form.title || !form.effectiveDate || !form.expiryDate) {
       setError("Title, effective and expiry dates are required");
       return;
     }
-    const audience =
-      form.displayType === "LOGIN"
-        ? "BOTH"
-        : form.audienceAgent && form.audiencePartner
-          ? "BOTH"
-          : form.audiencePartner
-            ? "PARTNER"
-            : "AGENT";
     setSaving(true);
     try {
-      await apiFetch("/api/announcements", {
-        method: "POST",
+      await apiFetch(editingId ? `/api/announcements/${editingId}` : "/api/announcements", {
+        method: editingId ? "PUT" : "POST",
         body: JSON.stringify({
           title: form.title,
           displayType: form.displayType,
-          audience,
+          audience: resolveAudience(),
           effectiveDate: form.effectiveDate,
           expiryDate: form.expiryDate,
           status: form.status,
           mediaDocumentId: mediaDocId
         })
       });
-      setShowForm(false);
-      setForm({ ...form, title: "", effectiveDate: "", expiryDate: "" });
-      setMediaDocId(null);
-      load();
+      resetForm();
+      await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save");
     } finally {
@@ -95,17 +141,44 @@ export default function AnnouncementsPage() {
     }
   };
 
+  const toggleStatus = async (row: Announcement) => {
+    setError(null);
+    setActionId(row.id);
+    try {
+      await apiFetch(`/api/announcements/${row.id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          status: row.status === "ACTIVE" ? "INACTIVE" : "ACTIVE"
+        })
+      });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update announcement");
+    } finally {
+      setActionId(null);
+    }
+  };
+
   return (
     <ProtectedShell roles={["ADMIN"]} title="Announcement" subtitle="Share notices with agents & partners">
       <div className="mb-4">
-        <Button onClick={() => setShowForm((s) => !s)}>
-          {showForm ? "Close" : "Add New Announcement"}
+        <Button onClick={startAdd}>
+          {showForm && !editingId ? (
+            <>
+              <X className="mr-2 h-4 w-4" />
+              Close
+            </>
+          ) : (
+            "Add New Announcement"
+          )}
         </Button>
       </div>
 
       {showForm ? (
         <Card className="mb-4">
-          <h3 className="section-title mb-3">Add New Announcement</h3>
+          <h3 className="section-title mb-3">
+            {editingId ? "Edit Announcement" : "Add New Announcement"}
+          </h3>
           {error ? <p className="mb-3 rounded-xl bg-red-50 p-2 text-sm text-red-600">{error}</p> : null}
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
@@ -163,12 +236,21 @@ export default function AnnouncementsPage() {
               </Select>
             </div>
           </div>
-          <div className="mt-4">
+          <div className="mt-4 flex flex-wrap gap-2">
             <Button onClick={submit} disabled={saving}>
-              {saving ? "Saving..." : "Submit"}
+              {saving ? "Saving..." : editingId ? "Update Announcement" : "Submit"}
             </Button>
+            {editingId ? (
+              <Button variant="ghost" onClick={resetForm} disabled={saving}>
+                Cancel
+              </Button>
+            ) : null}
           </div>
         </Card>
+      ) : null}
+
+      {error && !showForm ? (
+        <p className="mb-3 rounded-xl bg-red-50 p-2 text-sm text-red-600">{error}</p>
       ) : null}
 
       <Card>
@@ -187,6 +269,7 @@ export default function AnnouncementsPage() {
                   <th className="px-3 py-2">Effective</th>
                   <th className="px-3 py-2">Expiry</th>
                   <th className="px-3 py-2">Status</th>
+                  <th className="px-3 py-2 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -199,6 +282,33 @@ export default function AnnouncementsPage() {
                     <td className="px-3 py-2 text-slate-600">{formatDate(row.expiryDate)}</td>
                     <td className="px-3 py-2">
                       <Badge tone={tone(row.status)}>{row.status}</Badge>
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          className="min-h-9 px-3"
+                          onClick={() => startEdit(row)}
+                          disabled={actionId === row.id || saving}
+                        >
+                          <Pencil className="mr-1.5 h-4 w-4" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant={row.status === "ACTIVE" ? "danger" : "secondary"}
+                          className="min-h-9 px-3"
+                          onClick={() => toggleStatus(row)}
+                          disabled={actionId === row.id || row.status === "EXPIRED"}
+                          title={row.status === "EXPIRED" ? "Edit the expiry date before turning this on" : undefined}
+                        >
+                          {row.status === "ACTIVE" ? (
+                            <PowerOff className="mr-1.5 h-4 w-4" />
+                          ) : (
+                            <Power className="mr-1.5 h-4 w-4" />
+                          )}
+                          {actionId === row.id ? "Saving..." : row.status === "ACTIVE" ? "Off" : "On"}
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}

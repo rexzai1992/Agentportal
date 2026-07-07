@@ -67,6 +67,7 @@ export const updateAnnouncement = async (
     data: {
       title: input.title?.trim(),
       body: input.body?.trim() ?? undefined,
+      mediaDocumentId: input.mediaDocumentId === null ? null : input.mediaDocumentId || undefined,
       displayType: input.displayType,
       audience: input.audience,
       effectiveDate: input.effectiveDate ? new Date(input.effectiveDate) : undefined,
