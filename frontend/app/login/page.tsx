@@ -84,7 +84,6 @@ export default function LoginPage() {
             <p className="mt-2">admin@travel-agent.demo / admin123!</p>
             <p>Agent username A20260001 / agent123!</p>
             <p>Partner username P20260001 / partner123!</p>
-            <p>finance@travel-agent.demo / finance123!</p>
           </div>
         </section>
 
