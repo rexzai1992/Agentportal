@@ -261,8 +261,8 @@ export const AppShell = ({ user, title, subtitle, children }: AppShellProps) => 
               : "justify-center px-3 py-2.5",
           child
             ? active
-              ? "bg-white/20 text-white"
-              : "text-white/90 hover:bg-white/15 hover:text-white"
+              ? "bg-[#BDF7DD]/55 text-white"
+              : "text-white/95 hover:bg-[#BDF7DD]/35 hover:text-white"
             : active
               ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
               : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
@@ -300,7 +300,7 @@ export const AppShell = ({ user, title, subtitle, children }: AppShellProps) => 
           }}
           className={cn(
             "flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition",
-            active ? "bg-emerald-300 text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+            active ? "bg-[#8BE8BE] text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
           )}
         >
           <Icon className="h-4 w-4 shrink-0" />
@@ -313,7 +313,7 @@ export const AppShell = ({ user, title, subtitle, children }: AppShellProps) => 
         key={item.id}
         className={cn(
           "rounded-2xl p-1.5 transition",
-          open || active ? "bg-emerald-300 text-white shadow-[0_18px_38px_-28px_rgba(52,211,153,0.75)]" : "text-slate-600"
+          open || active ? "bg-[#8BE8BE] text-white shadow-[0_18px_38px_-28px_rgba(104,211,165,0.65)]" : "text-slate-600"
         )}
       >
         <button
@@ -324,7 +324,7 @@ export const AppShell = ({ user, title, subtitle, children }: AppShellProps) => 
           onClick={() => setOpenNavGroups((prev) => ({ ...prev, [item.id]: !open }))}
           className={cn(
             "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition",
-            open || active ? "text-white hover:bg-white/15" : "hover:bg-slate-100 hover:text-slate-900"
+            open || active ? "text-white hover:bg-[#BDF7DD]/35" : "hover:bg-slate-100 hover:text-slate-900"
           )}
         >
           <Icon className="h-4 w-4 shrink-0" />

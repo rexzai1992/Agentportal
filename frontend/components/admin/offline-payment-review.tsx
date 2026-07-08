@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/ui/loading";
 import { StatusUpdatePanel, type VerificationDecision } from "@/components/shared/status-update-panel";
+import { DocumentPreviewModal } from "@/components/shared/document-preview-modal";
 import { apiFetch } from "@/lib/fetcher";
 import { formatStatusLabel, statusTone } from "@/lib/status";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
@@ -30,6 +31,7 @@ export const OfflinePaymentReview = ({ id, role }: { id: string; role: "ADMIN" |
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [slipOpen, setSlipOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -96,14 +98,13 @@ export const OfflinePaymentReview = ({ id, role }: { id: string; role: "ADMIN" |
             <Info label="Finance Paid" value={data.financePaidAt ? formatDateTime(data.financePaidAt) : "Not yet"} />
           </div>
           {data.slipDocumentId ? (
-            <a
-              href={`/api/documents/${data.slipDocumentId}`}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-3 inline-block text-sm font-semibold text-emerald-700"
+            <button
+              type="button"
+              onClick={() => setSlipOpen(true)}
+              className="mt-3 inline-block text-sm font-semibold text-emerald-700 hover:underline"
             >
               View uploaded slip →
-            </a>
+            </button>
           ) : null}
         </Card>
 
@@ -164,6 +165,12 @@ export const OfflinePaymentReview = ({ id, role }: { id: string; role: "ADMIN" |
           </Card>
         ) : null}
       </div>
+
+      <DocumentPreviewModal
+        documentId={slipOpen ? data.slipDocumentId : null}
+        title="Uploaded Payment Slip"
+        onClose={() => setSlipOpen(false)}
+      />
     </div>
   );
 };
