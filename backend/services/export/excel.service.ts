@@ -35,6 +35,8 @@ export const buildWorkbook = async ({
   rows,
   title
 }: BuildWorkbookInput): Promise<Buffer> => {
+  const demo = process.env.APP_MODE === "demo";
+  if (demo) title = `DEMO — ${title || sheetName} — fictional sample data`;
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "Travel Agent Portal";
   const sheet = workbook.addWorksheet(sheetName.slice(0, 31) || "Report");
@@ -49,6 +51,8 @@ export const buildWorkbook = async ({
     key: column.key,
     width: column.width ?? 20
   }));
+
+  if (title) sheet.getRow(1).values = [title];
 
   // When a title is present the header row is offset; re-add header explicitly.
   if (title) {

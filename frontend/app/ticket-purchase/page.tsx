@@ -34,9 +34,13 @@ export default function TicketPurchasePage() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
+    setCart({});
+    setOutlet("ALL");
     try {
       setCatalog(await apiFetch<CatalogItem[]>("/api/purchases/catalog"));
     } catch (err) {
+      setCatalog([]);
       setError(err instanceof Error ? err.message : "Failed to load catalog");
     } finally {
       setLoading(false);
@@ -89,12 +93,17 @@ export default function TicketPurchasePage() {
 
   return (
     <ProtectedShell roles={["AGENT"]} title="Ticket Purchase" subtitle="Buy tickets under your scheme">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <Button variant="ghost" disabled={loading || submitting} onClick={load}>Refresh catalog</Button>
+        <p className="text-sm text-slate-500">Refreshing clears your cart so you can select current prices.</p>
+      </div>
+      {error ? <p role="alert" className="mb-3 rounded-xl bg-red-50 p-3 text-sm text-red-600">{error}</p> : null}
       {loading ? (
         <LoadingState label="Loading products..." />
       ) : catalog.length === 0 ? (
         <Card>
           <p className="text-sm text-slate-500">
-            No products are available. An admin must bind a purchase scheme to your account.
+            No products are currently available. Ask an admin to check your scheme assignment, effective date and product availability.
           </p>
         </Card>
       ) : (
@@ -166,7 +175,6 @@ export default function TicketPurchasePage() {
                 </div>
               </div>
             )}
-            {error ? <p className="mt-3 rounded-xl bg-red-50 p-2 text-sm text-red-600">{error}</p> : null}
             <Button className="mt-4 w-full" onClick={submit} disabled={submitting || cartLines.length === 0}>
               {submitting ? "Submitting..." : "Submit"}
             </Button>

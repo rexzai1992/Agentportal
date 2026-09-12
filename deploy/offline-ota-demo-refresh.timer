@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily OTA demo refresh in Malaysia time
+
+[Timer]
+OnCalendar=*-*-* 00:05:00 Asia/Kuala_Lumpur
+OnBootSec=5min
+Persistent=true
+Unit=offline-ota-demo-refresh.service
+
+[Install]
+WantedBy=timers.target

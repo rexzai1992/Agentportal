@@ -10,6 +10,7 @@ import { Modal } from "@/components/ui/modal";
 import { LoadingState } from "@/components/ui/loading";
 import { apiFetch } from "@/lib/fetcher";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { useSession } from "@/hooks/use-session";
 
 interface AnnouncementItem {
   id: string;
@@ -112,6 +113,8 @@ interface AgentDashboardResponse {
 export default function AgentDashboardPage() {
   const [data, setData] = useState<AgentDashboardResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useSession();
+  const isPartner = user?.partyType === "PARTNER";
 
   useEffect(() => {
     let mounted = true;
@@ -146,15 +149,10 @@ export default function AgentDashboardPage() {
         <LoadingState label="Loading agent dashboard..." />
       ) : (
         <>
-          {data.agreementType === "PREPAID" ? (
-            <section className="bento-grid sm:grid-cols-3">
-              <StatCard label="Current Credit Balance" value={formatCurrency(data.stats.creditBalance)} />
+          {data.agreementType === "PREPAID" || isPartner ? (
+            <section className="bento-grid sm:grid-cols-2">
               <StatCard label="Tickets Sold Today" value={String(data.stats.ticketsSoldToday)} href="/vouchers" />
-              <StatCard
-                label="Balance Status"
-                value={data.stats.lowBalanceWarning ? "Low Balance" : "Healthy"}
-                tone={data.stats.lowBalanceWarning ? "warning" : "success"}
-              />
+              <StatCard label="Total Tickets Sold" value={String(data.stats.totalTicketsSold)} href="/vouchers" />
             </section>
           ) : (
             <section className="bento-grid sm:grid-cols-3">

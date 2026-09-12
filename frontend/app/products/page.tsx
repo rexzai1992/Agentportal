@@ -1,296 +1,147 @@
 "use client";
-/* eslint-disable @next/next/no-img-element */
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ProtectedShell } from "@/components/layout/protected-shell";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { apiFetch } from "@/lib/fetcher";
 import { formatCurrency } from "@/lib/utils";
+import { useSession } from "@/hooks/use-session";
+import { parseProductBatch } from "@shared/types/product-batch";
 
-interface ProductItem {
-  id: string;
-  outlet: {
-    id: string;
-    name: string;
-    code: string;
-  };
-  name: string;
-  sku: string;
-  category: "ADULT" | "CHILD" | "BUNDLE";
-  description?: string | null;
-  imageUrl?: string | null;
-  sellingPrice: number | string;
-  active: boolean;
-  createdAt: string;
-}
-
-interface OutletItem {
-  id: string;
-  name: string;
-  code: string;
-  active: boolean;
-}
-
-interface ProductForm {
-  outletId: string;
-  name: string;
-  sku: string;
-  type: "ADULT" | "CHILD" | "BUNDLE";
-  description: string;
-  imageUrl: string;
-  price: string;
-}
-
-const initialForm: ProductForm = {
-  outletId: "",
-  name: "",
-  sku: "",
-  type: "ADULT",
-  description: "",
-  imageUrl: "",
-  price: "80"
-};
+type Row = { name: string; sku: string; type: "ADULT" | "CHILD" | "BUNDLE"; price: string; schemePrice: string };
+type Settings = { outletId: string; schemeId: string; description: string; imageUrl: string };
+type Product = { id: string; name: string; sku: string; category: string; sellingPrice: number; active: boolean; outlet: { name: string } };
+type Option = { id: string; name: string; status?: string };
+const blank = (): Row => ({ name: "", sku: "", type: "ADULT", price: "", schemePrice: "" });
+const initial: Settings = { outletId: "", schemeId: "", description: "", imageUrl: "" };
 
 export default function ProductsPage() {
-  const [products, setProducts] = useState<ProductItem[]>([]);
-  const [outlets, setOutlets] = useState<OutletItem[]>([]);
-  const [form, setForm] = useState<ProductForm>(initialForm);
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const { user } = useSession(["ADMIN"]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [outlets, setOutlets] = useState<Option[]>([]);
+  const [schemes, setSchemes] = useState<Option[]>([]);
+  const [settings, setSettings] = useState<Settings>(initial);
+  const [rows, setRows] = useState<Row[]>([blank()]);
+  const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [schedule, setSchedule] = useState<string | null>(null);
+  const [draftAvailable, setDraftAvailable] = useState(false);
+  const submitting = useRef(false);
+  const draftKey = user ? `product-batch-draft:${user.id}` : null;
 
-  const loadProducts = useCallback(async () => {
+  const load = useCallback(async () => {
     setLoading(true);
-    setError(null);
     try {
-      const [productData, outletData] = await Promise.all([
-        apiFetch<ProductItem[]>("/api/ticket-types?activeOnly=false"),
-        apiFetch<OutletItem[]>("/api/outlets")
+      const [p, o, s] = await Promise.all([
+        apiFetch<Product[]>("/api/ticket-types?activeOnly=false"),
+        apiFetch<Option[]>("/api/outlets"), apiFetch<Option[]>("/api/purchase-schemes")
       ]);
-      setProducts(productData);
-      setOutlets(outletData);
-      setForm((prev) => (prev.outletId || !outletData[0] ? prev : { ...prev, outletId: outletData[0].id }));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load products");
-    } finally {
-      setLoading(false);
-    }
+      setProducts(p); setOutlets(o); setSchemes(s.filter((item) => item.status === "ACTIVE"));
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to load products"); }
+    finally { setLoading(false); }
   }, []);
-
+  useEffect(() => { if (user) void load(); }, [load, user]);
   useEffect(() => {
-    loadProducts();
-  }, [loadProducts]);
+    if (!draftKey) return;
+    try { setDraftAvailable(Boolean(localStorage.getItem(draftKey))); } catch { /* Storage may be disabled. */ }
+  }, [draftKey]);
+  useEffect(() => {
+    let cancelled = false;
+    setSchedule(null);
+    if (settings.schemeId) apiFetch<{ revisions: { effectiveDate: string }[] }>(`/api/purchase-schemes/${settings.schemeId}`)
+      .then((scheme) => { if (!cancelled) setSchedule(scheme.revisions[0]?.effectiveDate ?? null); })
+      .catch(() => { if (!cancelled) setError("Unable to check the scheme schedule. Try selecting the scheme again."); });
+    return () => { cancelled = true; };
+  }, [settings.schemeId]);
 
-  const onCreate = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setSaving(true);
-    setError(null);
-
+  const update = (index: number, field: keyof Row, value: string) => setRows((prev) => prev.map((row, i) => i === index ? { ...row, [field]: value } : row));
+  const saveDraft = () => {
     try {
-      await apiFetch<ProductItem>("/api/ticket-types", {
-        method: "POST",
-        body: JSON.stringify({
-          outletId: form.outletId,
-          name: form.name,
-          sku: form.sku,
-          type: form.type,
-          description: form.description,
-          imageUrl: form.imageUrl,
-          price: Number(form.price)
-        })
-      });
-
-      setForm({ ...initialForm, outletId: form.outletId });
-      await loadProducts();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to create product");
-    } finally {
-      setSaving(false);
-    }
+      if (!draftKey) return;
+      localStorage.setItem(draftKey, JSON.stringify({ settings, rows }));
+      setDraftAvailable(true); setMessage("Draft saved in this browser. Products have not been created."); setError(null);
+    } catch { setError("This browser could not save the draft. Keep this page open."); }
+  };
+  const restoreDraft = () => {
+    try {
+      const draft = JSON.parse(localStorage.getItem(draftKey!) ?? "null");
+      if (!draft || !Array.isArray(draft.rows) || draft.rows.length < 1 || draft.rows.length > 200 ||
+        !draft.settings || !Object.keys(initial).every((key) => typeof draft.settings[key] === "string") ||
+        !draft.rows.every((row: Record<string, unknown>) => Object.keys(blank()).every((key) => typeof row[key] === "string"))) throw new Error();
+      setSettings(draft.settings); setRows(draft.rows); setMessage("Draft restored."); setError(null);
+    } catch { setError("The saved draft could not be restored."); }
+  };
+  const importFile = async (file: File) => {
+    setError(null); setMessage(null); setBusy(true);
+    try {
+      const data = new FormData(); data.append("file", file);
+      const response = await fetch("/api/ticket-types/import", { method: "POST", body: data });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error?.message ?? "Import failed");
+      const imported: Row[] = body.data.products.map((p: { name: string; sku: string; type: Row["type"]; price: number; schemePrice?: number }) => ({ ...p, price: String(p.price), schemePrice: p.schemePrice === undefined ? "" : String(p.schemePrice) }));
+      const existing = rows.filter((row) => Object.values(row).some((value, i) => i !== 2 && value !== ""));
+      if (existing.length + imported.length > 200) throw new Error("Maximum 200 rows. Import a smaller file.");
+      setRows([...existing, ...imported]); setMessage(`Imported ${imported.length} rows. Check them, then create the products.`);
+    } catch (err) { setError(err instanceof Error ? err.message : "Import failed"); }
+    finally { setBusy(false); }
+  };
+  const create = async () => {
+    if (submitting.current) return;
+    submitting.current = true; setBusy(true); setError(null); setMessage(null);
+    try {
+      const payload = parseProductBatch({ ...settings, products: rows.map((row) => ({ ...row, price: Number(row.price), schemePrice: settings.schemeId && row.schemePrice !== "" ? Number(row.schemePrice) : undefined })) });
+      const result = await apiFetch<{ count: number; schemeName: string | null; schemeEffectiveDate: string | null }>("/api/ticket-types/batch", { method: "POST", body: JSON.stringify(payload) });
+      setRows([blank()]);
+      try { if (draftKey) localStorage.removeItem(draftKey); } catch { /* Creation already succeeded. */ }
+      setDraftAvailable(false);
+      setMessage(`Created ${result.count} products.${result.schemeName ? ` Added to ${result.schemeName}, effective ${new Date(result.schemeEffectiveDate!).toLocaleString()}.` : " You can add these products to a scheme later."}`);
+      await load();
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to create products. Check the catalog before retrying."); }
+    finally { submitting.current = false; setBusy(false); }
   };
 
-  return (
-    <ProtectedShell
-      roles={["ADMIN"]}
-      title="Products"
-      subtitle="Create products after assigning them to an outlet"
-    >
-      <section className="bento-grid lg:grid-cols-[1fr_1fr]">
-        <Card>
-          <h3 className="section-title">Create Product</h3>
-          <p className="muted mt-1">Select outlet, then enter name, SKU, type, description, image and price.</p>
-          {!outlets.length ? (
-            <div className="mt-3 rounded-2xl bg-amber-50 p-3 text-sm text-amber-800 ring-1 ring-amber-100">
-              Create an outlet before adding products.{" "}
-              <Link href="/admin/outlets" className="font-semibold underline">
-                Go to Outlets
-              </Link>
-            </div>
-          ) : null}
-          <form className="mt-3 grid gap-3" onSubmit={onCreate}>
-            <Select
-              value={form.outletId}
-              onChange={(event) => setForm((prev) => ({ ...prev, outletId: event.target.value }))}
-              required
-              disabled={!outlets.length}
-            >
-              <option value="" disabled>
-                Select Outlet
-              </option>
-              {outlets.map((outlet) => (
-                <option key={outlet.id} value={outlet.id}>
-                  {outlet.name} ({outlet.code})
-                </option>
-              ))}
-            </Select>
-            <Input
-              placeholder="Product Name"
-              value={form.name}
-              onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-              required
-            />
-            <Input
-              placeholder="SKU (e.g. TA-ADULT-80)"
-              value={form.sku}
-              onChange={(event) => setForm((prev) => ({ ...prev, sku: event.target.value.toUpperCase() }))}
-              required
-            />
-            <Select
-              value={form.type}
-              onChange={(event) =>
-                setForm((prev) => ({
-                  ...prev,
-                  type: event.target.value as ProductForm["type"]
-                }))
-              }
-            >
-              <option value="ADULT">ADULT</option>
-              <option value="CHILD">CHILD</option>
-              <option value="BUNDLE">BUNDLE</option>
-            </Select>
-            <textarea
-              className="w-full rounded-2xl border border-slate-200 bg-white/95 px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
-              placeholder="Description"
-              value={form.description}
-              onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
-              rows={3}
-              required
-            />
-            <Input
-              placeholder="Image URL"
-              value={form.imageUrl}
-              onChange={(event) => setForm((prev) => ({ ...prev, imageUrl: event.target.value }))}
-              required
-            />
-            <Input
-              placeholder="Price"
-              type="number"
-              min={1}
-              value={form.price}
-              onChange={(event) => setForm((prev) => ({ ...prev, price: event.target.value }))}
-              required
-            />
-            <Button type="submit" disabled={saving || !outlets.length}>
-              {saving ? <Skeleton className="h-4 w-24 bg-white/70" /> : "Create Product"}
-            </Button>
-          </form>
-        </Card>
-
-        <Card>
-          <h3 className="section-title">Preview</h3>
-          <div className="mt-3 space-y-3">
-            {form.imageUrl ? (
-              <img
-                src={form.imageUrl}
-                alt="Product preview"
-                className="h-48 w-full rounded-2xl object-cover ring-1 ring-slate-200"
-              />
-            ) : (
-              <div className="flex h-48 items-center justify-center rounded-2xl bg-slate-100 text-sm text-slate-500 ring-1 ring-slate-200">
-                Image preview
-              </div>
-            )}
-
-            <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
-              <p className="text-xs font-semibold uppercase text-emerald-700">
-                {outlets.find((outlet) => outlet.id === form.outletId)?.name || "Select Outlet"}
-              </p>
-              <p className="text-sm font-semibold text-slate-800">{form.name || "Product Name"}</p>
-              <p className="text-xs uppercase tracking-wide text-slate-500">{form.sku || "SKU"}</p>
-              <p className="mt-1 text-xs text-slate-600">{form.description || "Product description"}</p>
-              <p className="mt-2 text-sm font-bold text-slate-900">
-                {formatCurrency(Number(form.price || 0))}
-              </p>
-            </div>
-          </div>
-        </Card>
-      </section>
-
-      <Card>
-        <div className="flex items-center justify-between gap-3">
-          <h3 className="section-title">Product Catalog</h3>
-          <Button variant="secondary" onClick={loadProducts}>
-            Refresh
-          </Button>
-        </div>
-
-        {loading ? (
-          <div className="mt-3 space-y-2" role="status" aria-live="polite" aria-label="Loading products">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-          </div>
-        ) : (
-          <div className="mt-3 overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 text-left text-slate-500">
-                  <th className="px-2 py-2">Product</th>
-                  <th className="px-2 py-2">Outlet</th>
-                  <th className="px-2 py-2">SKU</th>
-                  <th className="px-2 py-2">Type</th>
-                  <th className="px-2 py-2">Price</th>
-                  <th className="px-2 py-2">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {products.map((product) => (
-                  <tr key={product.id} className="border-b border-slate-100">
-                    <td className="px-2 py-2">
-                      <p className="font-semibold text-slate-800">{product.name}</p>
-                      <p className="text-xs text-slate-500">{product.description || "-"}</p>
-                    </td>
-                    <td className="px-2 py-2">
-                      <p className="font-semibold text-slate-700">{product.outlet.name}</p>
-                      <p className="font-mono text-xs text-slate-500">{product.outlet.code}</p>
-                    </td>
-                    <td className="px-2 py-2 font-mono text-xs text-slate-700">{product.sku || "-"}</td>
-                    <td className="px-2 py-2">{product.category}</td>
-                    <td className="px-2 py-2 font-semibold text-slate-800">
-                      {formatCurrency(Number(product.sellingPrice))}
-                    </td>
-                    <td className="px-2 py-2">
-                      <Badge tone={product.active ? "success" : "warning"}>
-                        {product.active ? "Active" : "Inactive"}
-                      </Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {!products.length ? <p className="muted px-2 py-4">No products yet.</p> : null}
-          </div>
-        )}
-      </Card>
-
-      {error ? <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
-    </ProtectedShell>
-  );
+  return <ProtectedShell roles={["ADMIN"]} title="Products" subtitle="Create multiple products together — no review required">
+    <Card>
+      <h3 className="section-title">Shared settings</h3>
+      <p className="muted mt-1">Choose the outlet once. Optionally add every product to a scheme using its base price or a row-specific price.</p>
+      {!loading && !outlets.length && <p className="mt-3 text-amber-800">An active outlet is required. <Link className="underline" href="/admin/outlets">Create an outlet</Link></p>}
+      <fieldset disabled={busy} className="mt-4 grid gap-4 sm:grid-cols-2">
+        <label className="text-sm">Outlet<Select aria-label="Outlet" value={settings.outletId} onChange={(e) => setSettings({ ...settings, outletId: e.target.value })}><option value="">Select outlet</option>{outlets.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}</Select></label>
+        <label className="text-sm">Add to scheme<Select aria-label="Add to scheme" value={settings.schemeId} onChange={(e) => setSettings({ ...settings, schemeId: e.target.value })}><option value="">Create products only</option>{schemes.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</Select></label>
+        <label className="text-sm">Shared description (optional)<Input value={settings.description} onChange={(e) => setSettings({ ...settings, description: e.target.value })} /></label>
+        <label className="text-sm">Shared image URL (optional)<Input type="url" value={settings.imageUrl} onChange={(e) => setSettings({ ...settings, imageUrl: e.target.value })} /></label>
+      </fieldset>
+      {settings.schemeId && <p className="mt-3 text-sm text-slate-600">Existing scheme products and pricing are preserved. New products use minimum quantity 1 and no discount or incentive.{schedule && new Date(schedule).getTime() > Date.now() ? ` This scheme is scheduled: these products join it on ${new Date(schedule).toLocaleDateString()}.` : " The new prices take effect immediately."}</p>}
+      <p className="muted mt-2">Vouchers currently expire one year after issuance.</p>
+    </Card>
+    <Card>
+      <div className="flex flex-wrap items-center justify-between gap-3"><h3 className="section-title">Products · {rows.length} / 200</h3><label className="text-sm">Import Excel (.xlsx)<input aria-label="Import Excel" className="ml-2 max-w-64 text-sm" type="file" accept=".xlsx" disabled={busy} onChange={(e) => { const file = e.target.files?.[0]; if (file) void importFile(file); e.target.value = ""; }} /></label></div>
+      <p className="muted mt-2">Excel headers: Name, SKU, Type, Price, Scheme Price (optional). Type: ADULT, CHILD or BUNDLE. Import adds rows without creating products.</p>
+      <fieldset disabled={busy}>
+      <div className="mt-4 overflow-x-auto"><table className="min-w-full text-sm"><thead><tr className="text-left text-slate-500">{["#", "Name", "SKU", "Type", "Base price", ...(settings.schemeId ? ["Scheme price"] : []), "Actions"].map((h) => <th className="px-2 py-2" key={h}>{h}</th>)}</tr></thead><tbody>
+        {rows.map((row, i) => <tr key={i} className="border-t border-slate-100"><td className="px-2">{i + 1}</td>
+          <td className="p-2"><Input aria-label={`Row ${i + 1} name`} className="min-w-44" value={row.name} onChange={(e) => update(i, "name", e.target.value)} /></td>
+          <td className="p-2"><Input aria-label={`Row ${i + 1} SKU`} className="min-w-36" value={row.sku} onChange={(e) => update(i, "sku", e.target.value.toUpperCase())} /></td>
+          <td className="p-2"><Select aria-label={`Row ${i + 1} type`} value={row.type} onChange={(e) => update(i, "type", e.target.value)}>{["ADULT", "CHILD", "BUNDLE"].map((t) => <option key={t}>{t}</option>)}</Select></td>
+          <td className="p-2"><Input aria-label={`Row ${i + 1} price`} className="w-28" type="number" min="0.01" step="0.01" value={row.price} onChange={(e) => update(i, "price", e.target.value)} /></td>
+          {settings.schemeId && <td className="p-2"><Input aria-label={`Row ${i + 1} scheme price`} className="w-28" type="number" min="0.01" step="0.01" placeholder="Base price" value={row.schemePrice} onChange={(e) => update(i, "schemePrice", e.target.value)} /></td>}
+          <td className="p-2"><div className="flex gap-2"><Button variant="ghost" aria-label={`Copy row ${i + 1}`} disabled={rows.length >= 200} onClick={() => setRows((prev) => [...prev, { ...row, sku: "" }])}>Copy</Button><Button variant="ghost" aria-label={`Remove row ${i + 1}`} onClick={() => setRows((prev) => prev.length === 1 ? [blank()] : prev.filter((_, index) => index !== i))}>Remove</Button></div></td>
+        </tr>)}
+      </tbody></table></div>
+      <div className="mt-4 flex flex-wrap gap-2"><Button variant="ghost" disabled={rows.length >= 200} onClick={() => setRows((prev) => [...prev, blank()])}>Add row</Button><Button variant="ghost" onClick={saveDraft}>Save draft</Button>{draftAvailable && <Button variant="ghost" onClick={restoreDraft}>Restore saved draft</Button>}<Button disabled={loading || !settings.outletId} onClick={create}>{busy ? "Working…" : `Create ${rows.length} product${rows.length === 1 ? "" : "s"}`}</Button></div>
+      </fieldset>
+      <p className="muted mt-2">Copy keeps the row details and clears the SKU. Drafts stay in this browser. If any row is invalid, the whole batch stays uncreated for correction.</p>
+      {error && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      {message && <p role="status" className="mt-4 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">{message}</p>}
+    </Card>
+    <Card><div className="flex items-center justify-between"><h3 className="section-title">Product catalog</h3><Button variant="ghost" disabled={busy || loading} onClick={load}>Refresh</Button></div>
+      {loading ? <p className="py-4">Loading products…</p> : <div className="mt-3 overflow-x-auto"><table className="min-w-full text-sm"><thead><tr className="text-left text-slate-500">{["Product", "Outlet", "SKU", "Type", "Base price", "Status"].map((h) => <th key={h} className="p-2">{h}</th>)}</tr></thead><tbody>{products.map((p) => <tr key={p.id} className="border-t border-slate-100"><td className="p-2">{p.name}</td><td className="p-2">{p.outlet.name}</td><td className="p-2">{p.sku}</td><td className="p-2">{p.category}</td><td className="p-2">{formatCurrency(Number(p.sellingPrice))}</td><td className="p-2">{p.active ? "Active" : "Inactive"}</td></tr>)}</tbody></table>{!products.length && <p className="py-4">No products yet.</p>}</div>}
+    </Card>
+  </ProtectedShell>;
 }

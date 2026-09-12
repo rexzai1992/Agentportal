@@ -6,6 +6,7 @@ interface EmailDriver {
 }
 
 const resolveDriver = (): EmailDriver => {
+  if (process.env.APP_MODE === "demo") return consoleDriver;
   switch (process.env.EMAIL_DRIVER) {
     // Add real drivers here (e.g. "resend", "smtp") and select by env.
     case "console":

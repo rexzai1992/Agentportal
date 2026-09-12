@@ -1,7 +1,6 @@
 import crypto from "node:crypto";
-import { PurchaseOrderStatus } from "@prisma/client";
+import { Prisma, PurchaseOrderStatus } from "@prisma/client";
 import { prisma, asNumber, toMoney } from "@backend/services/db";
-import { logActivity } from "@backend/services/activity.service";
 
 const generateReference = (): string => {
   const yy = new Date().getFullYear().toString().slice(-2);
@@ -10,20 +9,25 @@ const generateReference = (): string => {
 };
 
 /** Resolves the catalog (purchasable products) for an agent from bound schemes. */
-export const getAgentCatalog = async (agentId: string) => {
-  const assignments = await prisma.schemeAssignment.findMany({
-    where: { agentId, scheme: { status: "ACTIVE" } },
+const resolveAgentCatalog = async (agentId: string, client: Prisma.TransactionClient, now: Date) => {
+  const agent = await client.agent.findUnique({ where: { id: agentId }, select: { accountStatus: true, accountExpiry: true } });
+  if (!agent || agent.accountStatus !== "ACTIVE" || (agent.accountExpiry && agent.accountExpiry <= now)) {
+    throw new Error("Account is inactive or expired; purchasing is unavailable");
+  }
+  const assignments = await client.schemeAssignment.findMany({
+    where: { agentId, effectiveDate: { lte: now }, scheme: { status: "ACTIVE" } },
     select: { schemeId: true }
   });
   const schemeIds = assignments.map((a) => a.schemeId);
   if (schemeIds.length === 0) return [];
 
   // Latest revision per scheme (effective now or earlier).
-  const revisions = await prisma.schemeRevision.findMany({
-    where: { schemeId: { in: schemeIds }, effectiveDate: { lte: new Date() }, status: "ACTIVE" },
+  const revisions = await client.schemeRevision.findMany({
+    where: { schemeId: { in: schemeIds }, effectiveDate: { lte: now }, status: "ACTIVE" },
     orderBy: [{ schemeId: "asc" }, { revisionNumber: "desc" }],
     include: {
       products: {
+        where: { ticketType: { active: true, outlet: { active: true } } },
         include: {
           ticketType: { select: { name: true, category: true, outlet: { select: { name: true } } } }
         }
@@ -70,6 +74,11 @@ export const getAgentCatalog = async (agentId: string) => {
   return catalog;
 };
 
+export const getAgentCatalog = (agentId: string) =>
+  prisma.$transaction((tx) => resolveAgentCatalog(agentId, tx, new Date()), {
+    isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead
+  });
+
 export interface CartItemInput {
   schemeProductId: string;
   quantity: number;
@@ -80,67 +89,83 @@ export const createPurchaseOrder = async (params: {
   userId: string;
   items: CartItemInput[];
 }) => {
-  if (!params.items?.length) throw new Error("Cart is empty");
-
-  const schemeProducts = await prisma.schemeProduct.findMany({
-    where: { id: { in: params.items.map((i) => i.schemeProductId) } }
-  });
-  const byId = new Map(schemeProducts.map((p) => [p.id, p]));
-
-  let subtotal = 0;
-  let incentiveTotal = 0;
-  let discountTotal = 0;
-  let schemeRevisionId: string | null = null;
-
-  const items = params.items.map((item) => {
-    const sp = byId.get(item.schemeProductId);
-    if (!sp) throw new Error("Invalid product in cart");
-    let qty = item.quantity;
-    if (qty < sp.minQty) qty = sp.minQty;
-    if (sp.maxQty && qty > sp.maxQty) qty = sp.maxQty;
-
-    const unitPrice = asNumber(sp.price);
-    const lineTotal = toMoney(unitPrice * qty);
-    subtotal += lineTotal;
-    if (sp.incentiveRate) incentiveTotal += toMoney((lineTotal * asNumber(sp.incentiveRate)) / 100);
-    if (sp.discountRate) discountTotal += toMoney((lineTotal * asNumber(sp.discountRate)) / 100);
-    schemeRevisionId = sp.schemeRevisionId;
-
-    return {
-      ticketTypeId: sp.ticketTypeId,
-      schemeProductId: sp.id,
-      quantity: qty,
-      unitPrice,
-      lineTotal
-    };
-  });
-
-  const totalPayable = toMoney(subtotal - discountTotal);
-
-  const order = await prisma.purchaseOrder.create({
-    data: {
-      orderReference: generateReference(),
-      agentId: params.agentId,
-      schemeRevisionId,
-      status: "PENDING_PAYMENT",
-      subtotal: toMoney(subtotal),
-      incentiveTotal: toMoney(incentiveTotal),
-      discountTotal: toMoney(discountTotal),
-      totalPayable,
-      createdByUserId: params.userId,
-      items: { create: items }
+  if (!Array.isArray(params.items) || !params.items.length) throw new Error("Cart is empty");
+  const seen = new Set<string>();
+  for (const item of params.items) {
+    if (!item || typeof item.schemeProductId !== "string" || !Number.isSafeInteger(item.quantity) || item.quantity <= 0) {
+      throw new Error("Each cart item needs a product and a positive whole-number quantity");
     }
-  });
+    if (seen.has(item.schemeProductId)) throw new Error("Combine duplicate product rows before checkout");
+    seen.add(item.schemeProductId);
+  }
 
-  await logActivity({
-    userId: params.userId,
-    action: "PURCHASE_ORDER_CREATED",
-    entityType: "PURCHASE_ORDER",
-    entityId: order.id,
-    description: `Created purchase order ${order.orderReference}`
-  });
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const catalog = await resolveAgentCatalog(params.agentId, tx, new Date());
+      const byId = new Map(catalog.map((p) => [p.schemeProductId, p]));
 
-  return { id: order.id, orderReference: order.orderReference };
+      let subtotal = 0;
+      let incentiveTotal = 0;
+      let discountTotal = 0;
+      let schemeRevisionId: string | null = null;
+
+      const items = params.items.map((item) => {
+        const sp = byId.get(item.schemeProductId);
+        if (!sp) throw new Error("A product or price is no longer available for your account. Refresh the catalog and update your cart.");
+        const qty = item.quantity;
+        if (qty < sp.minQty || (sp.maxQty !== null && qty > sp.maxQty)) {
+          throw new Error(`Quantity for ${sp.name} must be between ${sp.minQty} and ${sp.maxQty ?? "the available limit"}`);
+        }
+
+        const unitPrice = asNumber(sp.price);
+        const lineTotal = toMoney(unitPrice * qty);
+        subtotal += lineTotal;
+        if (sp.incentiveRate) incentiveTotal += toMoney((lineTotal * asNumber(sp.incentiveRate)) / 100);
+        if (sp.discountRate) discountTotal += toMoney((lineTotal * asNumber(sp.discountRate)) / 100);
+        schemeRevisionId = sp.schemeRevisionId;
+
+        return {
+          ticketTypeId: sp.ticketTypeId,
+          schemeProductId: sp.schemeProductId,
+          quantity: qty,
+          unitPrice,
+          lineTotal
+        };
+      });
+
+      const totalPayable = toMoney(subtotal - discountTotal);
+
+      const order = await tx.purchaseOrder.create({
+        data: {
+          orderReference: generateReference(),
+          agentId: params.agentId,
+          schemeRevisionId,
+          status: "PENDING_PAYMENT",
+          subtotal: toMoney(subtotal),
+          incentiveTotal: toMoney(incentiveTotal),
+          discountTotal: toMoney(discountTotal),
+          totalPayable,
+          createdByUserId: params.userId,
+          items: { create: items }
+        }
+      });
+
+      await tx.activityLog.create({ data: {
+        userId: params.userId,
+        action: "PURCHASE_ORDER_CREATED",
+        entityType: "PURCHASE_ORDER",
+        entityId: order.id,
+        description: `Created purchase order ${order.orderReference}`
+      } });
+
+      return { id: order.id, orderReference: order.orderReference };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") {
+      throw new Error("Pricing changed during checkout. Refresh the catalog and try again.");
+    }
+    throw error;
+  }
 };
 
 const serializeOrder = (order: {

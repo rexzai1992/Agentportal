@@ -4,7 +4,7 @@ import type { ComplimentaryItemInput } from "@backend/services/complimentary.ser
 import { fail, ok, parseBody, withAuth } from "@/lib/api";
 
 export async function GET(request: NextRequest) {
-  return withAuth(request, ["ADMIN"], async () => ok(await complimentaryController.list()));
+  return withAuth(request, ["ADMIN", "FINANCE"], async () => ok(await complimentaryController.list()));
 }
 
 export async function POST(request: NextRequest) {

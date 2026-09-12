@@ -50,6 +50,9 @@ async function resetDatabase() {
 }
 
 async function main() {
+  if (process.env.APP_MODE !== "demo" || process.env.DEMO_ALLOW_RESET !== "true" || !process.env.DATABASE_URL || process.env.DEMO_DATABASE_NAME !== new URL(process.env.DATABASE_URL).pathname.slice(1)) {
+    throw new Error("Seed resets data: require APP_MODE=demo, matching DEMO_DATABASE_NAME and DEMO_ALLOW_RESET=true");
+  }
   await resetDatabase();
 
   const [adminPassword, agentPassword, staffPassword, financePassword, partnerPassword] =
@@ -247,7 +250,7 @@ async function main() {
     }
   });
 
-  await prisma.user.create({
+  const partnerUser = await prisma.user.create({
     data: {
       fullName: "Coral Partner",
       email: "coral.partner@travel-agent.demo",
@@ -346,6 +349,51 @@ async function main() {
       monthlyOutstanding += payable;
       monthlyBookingIds.push(booking.id);
     }
+  }
+
+  // Demo activity for the partner account so partner and admin views show data
+  for (let i = 0; i < 3; i += 1) {
+    const ticketType = ticketTypes[i % ticketTypes.length];
+    const quantity = 3;
+    const subtotal = num(ticketType.sellingPrice) * quantity;
+    const commission = Number(((subtotal * num(ticketType.commissionRate)) / 100).toFixed(2));
+    const payable = Number((subtotal - commission).toFixed(2));
+
+    const createdAt = new Date(now);
+    createdAt.setDate(now.getDate() - (5 - i * 2));
+
+    const booking = await prisma.booking.create({
+      data: {
+        agentId: partnerAgent.id,
+        customerName: `Partner Customer ${i + 1}`,
+        customerPhone: `+6013${String(5000000 + i * 77)}`,
+        bookingReference: `BKG-PTR-${String(100 + i)}`,
+        totalTickets: quantity,
+        subtotal: decimal(subtotal),
+        totalCommission: decimal(commission),
+        totalPayable: decimal(payable),
+        paymentStatus: "PREPAID_PAID",
+        createdByUserId: partnerUser.id,
+        createdAt
+      }
+    });
+
+    const visitDate = new Date(createdAt);
+    visitDate.setDate(createdAt.getDate() + 1);
+
+    await prisma.ticket.createMany({
+      data: Array.from({ length: quantity }).map((_, idx) => ({
+        bookingId: booking.id,
+        ticketTypeId: ticketType.id,
+        ticketCode: `${booking.bookingReference}-${String(idx + 1).padStart(3, "0")}`,
+        qrToken: crypto.randomUUID(),
+        visitDate,
+        status: (i === 0 && idx < 2 ? "USED" : "ACTIVE") as TicketStatus,
+        checkedInAt: i === 0 && idx < 2 ? new Date(visitDate.getTime() + (10 + idx) * 3600e3) : null,
+        checkedInBy: i === 0 && idx < 2 ? staffUser.id : null,
+        createdAt
+      }))
+    });
   }
 
   await prisma.agent.update({
@@ -517,6 +565,53 @@ async function main() {
       assignedByUserId: adminUser.id,
       effectiveDate: schemeRevision.effectiveDate
     }
+  });
+
+  // Partners buy from the same scheme
+  await prisma.schemeAssignment.create({
+    data: {
+      schemeId: scheme.id,
+      agentId: partnerAgent.id,
+      bindingType: "STANDARD",
+      assignedByUserId: adminUser.id,
+      effectiveDate: schemeRevision.effectiveDate
+    }
+  });
+
+  // Home-popup announcements for agents and partners
+  await prisma.announcement.createMany({
+    data: [
+      {
+        title: "School Holiday Season — Extended Park Hours",
+        body: "From 15 July to 31 August 2026 the park operates 9:00 AM – 8:00 PM daily. Expect higher visitor volume during weekends; remind your customers to have their voucher QR ready at the gate for faster entry.",
+        displayType: "HOME",
+        audience: "BOTH",
+        effectiveDate: new Date("2026-07-08T00:00:00.000Z"),
+        expiryDate: new Date("2026-08-31T23:59:59.000Z"),
+        status: "ACTIVE",
+        createdByUserId: adminUser.id
+      },
+      {
+        title: "New Family Bundle Pricing from 1 August 2026",
+        body: "A new purchase scheme revision takes effect on 1 August 2026 with updated Family Bundle rates. Orders submitted and paid before 31 July will be honoured at current prices. Check your Purchase Scheme or contact the admin team for the updated rate card.",
+        displayType: "HOME",
+        audience: "AGENT",
+        effectiveDate: new Date("2026-07-08T00:00:00.000Z"),
+        expiryDate: new Date("2026-08-15T23:59:59.000Z"),
+        status: "ACTIVE",
+        createdByUserId: adminUser.id
+      },
+      {
+        title: "Reminder: Upload Payment Slips Within 3 Working Days",
+        body: "To avoid order cancellation, upload your bank-in slip on the Transaction Review page within 3 working days of placing an order. Vouchers are generated automatically once Finance verifies the payment and Admin approves it.",
+        displayType: "HOME",
+        audience: "PARTNER",
+        effectiveDate: new Date("2026-07-08T00:00:00.000Z"),
+        expiryDate: new Date("2026-12-31T23:59:59.000Z"),
+        status: "ACTIVE",
+        createdByUserId: adminUser.id
+      }
+    ]
   });
 
   // Sample login-page announcement

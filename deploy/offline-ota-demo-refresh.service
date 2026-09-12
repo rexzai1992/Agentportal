@@ -1,0 +1,10 @@
+[Unit]
+Description=Refresh isolated OTA demo data
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/apps/offline-ota-test
+ExecStart=/usr/bin/docker compose exec -T app node ../backend/scripts/refresh-demo.cjs
+TimeoutStartSec=1800

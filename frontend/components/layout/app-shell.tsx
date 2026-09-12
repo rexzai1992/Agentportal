@@ -165,6 +165,7 @@ const navByRole: Record<AppShellProps["user"]["role"], NavItem[]> = {
     { href: "/settings", label: "Settings", icon: Settings2 }
   ],
   FINANCE: [
+    { href: "/finance/complimentary", label: "Complimentary Approvals", icon: Gift },
     { href: "/finance/offline-payments", label: "Offline Payments", icon: Wallet },
     { href: "/settings", label: "Settings", icon: Settings2 }
   ],

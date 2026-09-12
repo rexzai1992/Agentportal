@@ -5,7 +5,7 @@ import { prisma } from "@backend/services/db";
 const genSerial = (prefix: string, index: number): string => {
   const yy = new Date().getFullYear().toString().slice(-2);
   const batch = crypto.randomInt(100000, 999999);
-  return `${prefix}-${yy}-${batch}_${String(index + 1).padStart(3, "0")}`;
+  return `${process.env.APP_MODE === "demo" ? "DEMO-" : ""}${prefix}-${yy}-${batch}_${String(index + 1).padStart(3, "0")}`;
 };
 
 /**

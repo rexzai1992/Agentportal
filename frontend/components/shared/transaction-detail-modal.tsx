@@ -133,6 +133,14 @@ export const ReferenceLink = ({
     setOpen(true);
   };
 
+  // Report placeholders describe vouchers/payments without a purchase order.
+  // They must not call the purchase detail endpoint as if they were references.
+  if (["", "-", "COMPLIMENTARY"].includes(reference.trim().toUpperCase())) {
+    return <span title={reference.trim().toUpperCase() === "COMPLIMENTARY"
+      ? "Complimentary ticket — no purchase order"
+      : "No linked purchase order"}>{reference || "-"}</span>;
+  }
+
   return (
     <>
       <button

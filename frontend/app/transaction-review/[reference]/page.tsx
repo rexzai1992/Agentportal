@@ -50,18 +50,23 @@ export default function TransactionReviewPage() {
   const [paymentTypeId, setPaymentTypeId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
+    setOrder(null);
     try {
       const [o, g, t] = await Promise.all([
-        apiFetch<OrderDetail>(`/api/purchases/${params.reference}`),
+        apiFetch<OrderDetail>(`/api/purchases/${encodeURIComponent(params.reference)}`),
         apiFetch<Lookup[]>("/api/payment-groups"),
         apiFetch<Lookup[]>("/api/payment-types")
       ]);
       setOrder(o);
       setGroups(g);
       setTypes(t);
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : "Unable to load this transaction");
     } finally {
       setLoading(false);
     }
@@ -79,7 +84,7 @@ export default function TransactionReviewPage() {
     }
     setSubmitting(true);
     try {
-      await apiFetch(`/api/purchases/${params.reference}/offline-payment`, {
+      await apiFetch(`/api/purchases/${encodeURIComponent(order!.orderReference)}/offline-payment`, {
         method: "POST",
         body: JSON.stringify({ slipDocumentId: slipDocId, paymentGroupId, paymentTypeId })
       });
@@ -96,8 +101,16 @@ export default function TransactionReviewPage() {
 
   return (
     <ProtectedShell roles={["AGENT"]} title="Transaction Review" subtitle="Review your order">
-      {loading || !order ? (
+      {loading ? (
         <LoadingState label="Loading transaction..." />
+      ) : loadError || !order ? (
+        <Card>
+          <p role="alert" className="text-sm text-red-700">{loadError ?? "Transaction is unavailable"}</p>
+          <div className="mt-4 flex gap-2">
+            <Button variant="ghost" onClick={load}>Try again</Button>
+            <Button onClick={() => router.push("/reports/purchase")}>Back to purchases</Button>
+          </div>
+        </Card>
       ) : (
         <div className="grid gap-4 lg:grid-cols-[1fr_2fr]">
           <Card>

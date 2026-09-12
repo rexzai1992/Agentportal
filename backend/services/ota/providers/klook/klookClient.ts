@@ -44,6 +44,7 @@ const buildErrorMessage = (status: number, responseBody: unknown, fallback: stri
 };
 
 export const klookRequest = async <T>(options: KlookRequestOptions): Promise<T> => {
+  if (process.env.APP_MODE === "demo") throw new Error("External Klook requests are disabled in demo mode.");
   const config = await resolveKlookRuntimeConfig();
   const url = buildKlookUrl(config.apiBaseUrl, options.path, options.searchParams);
   const headers: Record<string, string> = {

@@ -853,9 +853,13 @@ model ComplimentaryGrant {
   schemeRevisionId String?
   quantity         Int
   reason           String?        @db.Text
-  status           ApprovalStatus @default(APPROVED)
+  status           ApprovalStatus @default(PENDING)
   createdByUserId  String
   createdAt        DateTime       @default(now())
+  requestedItems   Json?
+  reviewedByUserId String?
+  reviewedAt       DateTime?
+  reviewRemarks    String?        @db.Text
 
   agent    Agent     @relation(fields: [agentId], references: [id], onDelete: Restrict)
   vouchers Voucher[]

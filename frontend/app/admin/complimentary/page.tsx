@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { ProductPicker, type ProductOption } from "@/components/shared/product-picker";
+import { ComplimentaryRequests } from "@/components/shared/complimentary-requests";
 import { apiFetch } from "@/lib/fetcher";
 
 interface UserOption {
@@ -32,9 +33,11 @@ export default function ComplimentaryPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const load = useCallback(async () => {
-    setUsers(await apiFetch<UserOption[]>("/api/complimentary/users"));
+    try { setUsers(await apiFetch<UserOption[]>("/api/complimentary/users")); }
+    catch (err) { setError(err instanceof Error ? err.message : "Unable to load recipients"); }
   }, []);
 
   useEffect(() => {
@@ -53,6 +56,7 @@ export default function ComplimentaryPage() {
     });
 
   const submit = async () => {
+    if (saving) return;
     setError(null);
     setMessage(null);
     if (!agentId) {
@@ -73,7 +77,8 @@ export default function ComplimentaryPage() {
           items: cart.map((c) => ({ ticketTypeId: c.ticketTypeId, quantity: c.quantity }))
         })
       });
-      setMessage(`Complimentary vouchers issued (${totalQty} tickets).`);
+      setMessage(`Request submitted (${totalQty} tickets). Awaiting Finance approval; no vouchers issued yet.`);
+      setRefreshKey((key) => key + 1);
       setCart([]);
       setReason("");
     } catch (err) {
@@ -84,7 +89,7 @@ export default function ComplimentaryPage() {
   };
 
   return (
-    <ProtectedShell roles={["ADMIN"]} title="Complimentary" subtitle="Grant free tickets">
+    <ProtectedShell roles={["ADMIN"]} title="Complimentary" subtitle="Request free tickets — Finance approval required before issuance">
       <div className="grid gap-4 lg:grid-cols-[1fr_2fr]">
         <Card>
           <h3 className="section-title mb-3">User</h3>
@@ -92,7 +97,7 @@ export default function ComplimentaryPage() {
             <option value="">Select user...</option>
             {users.map((u) => (
               <option key={u.id} value={u.id}>
-                {u.companyName} ({u.accountCode})
+                {u.companyName}{u.accountCode ? ` (${u.accountCode})` : ""}
               </option>
             ))}
           </Select>
@@ -122,7 +127,8 @@ export default function ComplimentaryPage() {
                       type="number"
                       className="w-24"
                       value={item.quantity}
-                      min={MIN_QTY}
+                      min={1}
+                      step={1}
                       onChange={(e) =>
                         setCart((prev) =>
                           prev.map((x) =>
@@ -150,10 +156,12 @@ export default function ComplimentaryPage() {
           {message ? <p className="mt-3 rounded-xl bg-emerald-50 p-2 text-sm text-emerald-700">{message}</p> : null}
 
           <Button className="mt-4" onClick={submit} disabled={saving || totalQty < MIN_QTY || !agentId}>
-            {saving ? "Submitting..." : "Submit"}
+            {saving ? "Submitting..." : "Submit for approval"}
           </Button>
         </Card>
       </div>
+
+      <ComplimentaryRequests refreshKey={refreshKey} />
 
       <ProductPicker
         open={pickerOpen}
